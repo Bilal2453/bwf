@@ -1,5 +1,5 @@
 local core = require('core')
-local template = require('template')
+local template = require('uri-template')
 local Hook = require('Hook')
 local Endpoint = require('Endpoint')
 
