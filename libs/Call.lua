@@ -2,15 +2,16 @@ local core = require('core')
 local json = require('json')
 
 ---@class bwf.Call: luvit.core.Object
----@field new fun(self: self, app: bwf.App, adapter: {req: table, res: table})
+---@field new fun(self: self, app: bwf.App, adapter: bwf.Adapter, backend_stat: table)
 ---@field app bwf.App
+---@field adapter bwf.Adapter
 ---@field req table
 ---@field headers table
 ---@field body string
 ---@field keepAlive boolean
----@field state {sent: boolean, aborted: boolean} | table
+---@field state {sent: boolean, aborted: boolean, _backend: table} | table
 ---@field storage table # A plain Lua table used to store various data related to the Call, useful for interceptors.
-local Call = core.Object:extend() --[[@diagnostic disable-line: assign-type-mismatch]]
+local Call = core.Object:extend()
 
 -- TODO: redesign Call.body to be a buffer instead of a string
 
@@ -23,22 +24,29 @@ local Call = core.Object:extend() --[[@diagnostic disable-line: assign-type-mism
 
 -- TODO: might want a Call.store or similar data structure for holding data between hooks
 
-function Call:initialize(app, adapter)
+-- TODO: a way to "abort" a call, whatever abort should mean
+
+function Call:initialize(app, adapter, backend_state)
   self.app = app
+  self.adapter = adapter
+  -- TODO: make sure states are properly updated
   self.state = {
     sent = false,
     aborted = false,
+    _backend = backend_state,
   }
+
+  -- TODO MAIN 3: use the Adapter methods to build up the states instead of depending on backend_state
 
   -- TODO: abstract this properly
   self.req = setmetatable({}, {
-    __index = adapter.req,
+    __index = backend_state.req,
     __newindex = function()
       return error('Illegal operation: Call.req is read-only')
     end,
   })
-  self.headers = adapter.res.headers
-  self.keepAlive = adapter.res.keepAlive
+  self.headers = backend_state.res.headers
+  self.keepAlive = backend_state.res.keepAlive
   self.code = 404
   self.body = 'Not found'
 end

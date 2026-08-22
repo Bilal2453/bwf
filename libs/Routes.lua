@@ -4,7 +4,11 @@ local Hook = require('Hook')
 local Endpoint = require('Endpoint')
 
 --- Represents a logical grouping of API endpoints sharing a common URI prefix and metadata.
---- It manages route hierarchy and endpoint registration prior to any compilation.
+--- 
+--- Properties defined in the Endpoint take precedence over ones defined in the Routes instance according to the following rules:
+---   - Parameters of the same name are replaced by their Endpoint counterpart, the rest is inherited.
+---   - Responses that has the same code are replaced by their Endpoint counterpart, the rest is inherited.
+---   - Security, tags, servers, callbacks and docs are replaced entirely by their Endpoint counterparts. 
 ---@class bwf.Routes: luvit.core.Object
 ---@field new fun(self: self, options: bwf.Routes.options?): bwf.Routes
 ---@field endpoints bwf.Endpoint.struct[].
@@ -48,6 +52,67 @@ function Routes:getEndpoint(path)
   return self.registered_paths[path]
 end
 
+--- Merge options with their defaults from Routes instance.
+---@param options bwf.Routes.options?
+---@param routes bwf.Routes
+---@return bwf.Endpoint.options
+---@nodiscard
+local function resolveOptions(options, routes)
+  local resolved = {
+    parameters = routes.parameters,
+    response = routes.responses,
+    tags = routes.tags,
+    docs = routes.docs,
+    security = routes.security,
+    servers = routes.servers,
+    callbacks = routes.callbacks
+  }
+  if not options then
+    return resolved
+  end
+
+  if options.tags then
+    resolved.tags = options.tags
+  end
+  if options.docs then
+    resolved.docs = options.docs
+  end
+  if options.security then
+    resolved.security = options.security
+  end
+  if options.servers then
+    resolved.servers = options.servers
+  end
+  if options.callbacks then
+    resolved.callbacks = options.callbacks
+  end
+
+  if options.parameters then
+    local parameters = {}
+    for _, inherited in ipairs(routes.parameters) do
+      local param = inherited
+      for _, matched in ipairs(parameters) do
+        if matched.name == param.name then
+          param = matched
+        end
+      end
+    end
+    resolved.parameters = parameters
+  end
+  if options.responses then
+    local responses = {}
+    for code, res in pairs(routes.responses) do
+      responses[code] = res
+    end
+    for code, res in pairs(options.responses) do
+      responses[code] = res
+    end
+    resolved.response = responses
+  end
+
+  return resolved
+end
+
 --- Register an Endpoint object with the given path.
 --- `options` override the defaults specified in this Routes instance.
 ---@param path string
@@ -56,9 +121,10 @@ end
 ---@return self
 function Routes:register(path, endpoint, options)
   path = template.normalize(path)
+  options = resolveOptions(options, self)
   local struct = {
     endpoint = endpoint,
-    options = options or {},
+    options = options,
     path = path,
   }
   self.registered_paths[path] = struct

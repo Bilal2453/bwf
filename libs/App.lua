@@ -17,7 +17,7 @@ local template = require('uri-template')
 ---@class bwf.App: luvit.core.Emitter
 ---@field new fun(self: self, interface: {host: string, port: integer, tls?: boolean}): bwf.App
 ---@field interface {host: string, port: integer, tls?: boolean}
----@field _backend Adapter
+---@field _backend bwf.Adapter
 ---@field state {is_running: boolean, is_compiled: boolean}
 ---@field hooks {request: table, response: table, error: table}
 ---@field main_route bwf.Routes
