@@ -1,18 +1,18 @@
 local core = require('core')
 
 --- An abstract class representing a backend server in an agnostic way.
---- 
+---
 --- Flow:
 ---   Adapter:start()
 ---   -> (on request)
 ---   -> Adapter:handler(...)
 ---   -> (Call instance is created)
---- 
+---
 --- General notes:
 ---   - Any async operation must be done in blocking style using coroutines.
 ---   - To offer maximum flexibility, request body is never directly exposed.
 ---   - Read operations return full results unless indicated otherwise for chunked data.
---- 
+---
 --- This is an abstract class, a direct instance of this class must not exist.
 ---@class bwf.Adapter: luvit.core.Object
 ---@field app bwf.App
@@ -116,7 +116,6 @@ end
 --- The request headers as a map of the header name to the value, if the header is provided multiple times
 --- the value must be an array of the provided values. All values must be strings.
 ---@field headers {[string]: string | string[]}
---- The payload of the HTTP request. 
-
+--- The payload of the HTTP request.
 
 return Adapter

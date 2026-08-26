@@ -9,7 +9,7 @@ app:hookRequest({
   id = 'ding',
   call = function(call)
     call:setHeader('X-Ding', '1')
-  end
+  end,
 })
 
 -- define the endpoint
@@ -30,7 +30,7 @@ ping_endpoint:hookResponse({
   id = 'remove_ding',
   call = function(call)
     call:setHeader('X-Ding', nil)
-  end
+  end,
 })
 
 -- register endpoint and start the server

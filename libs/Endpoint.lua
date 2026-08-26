@@ -1,5 +1,5 @@
-local core = require('core')
 local Hook = require('Hook')
+local core = require('core')
 
 local methods = { 'get', 'post', 'put', 'delete', 'head', 'query', 'options', 'trace', 'patch' }
 for _, v in ipairs(methods) do

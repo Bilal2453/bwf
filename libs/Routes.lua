@@ -1,14 +1,14 @@
+local Endpoint = require('Endpoint')
+local Hook = require('Hook')
 local core = require('core')
 local template = require('uri-template')
-local Hook = require('Hook')
-local Endpoint = require('Endpoint')
 
 --- Represents a logical grouping of API endpoints sharing a common URI prefix and metadata.
---- 
+---
 --- Properties defined in the Endpoint take precedence over ones defined in the Routes instance according to the following rules:
 ---   - Parameters of the same name are replaced by their Endpoint counterpart, the rest is inherited.
 ---   - Responses that has the same code are replaced by their Endpoint counterpart, the rest is inherited.
----   - Security, tags, servers, callbacks and docs are replaced entirely by their Endpoint counterparts. 
+---   - Security, tags, servers, callbacks and docs are replaced entirely by their Endpoint counterparts.
 ---@class bwf.Routes: luvit.core.Object
 ---@field new fun(self: self, options: bwf.Routes.options?): bwf.Routes
 ---@field endpoints bwf.Endpoint.struct[].
@@ -32,7 +32,7 @@ function Routes:initialize(options)
   self.hooks = {
     request = {},
     response = {},
-    error = {}
+    error = {},
   }
 
   self.responses = options.responses or {}
@@ -65,7 +65,7 @@ local function resolveOptions(options, routes)
     docs = routes.docs,
     security = routes.security,
     servers = routes.servers,
-    callbacks = routes.callbacks
+    callbacks = routes.callbacks,
   }
   if not options then
     return resolved
@@ -133,10 +133,10 @@ function Routes:register(path, endpoint, options)
 end
 
 --- Create and register a new Endpoint and operation.
---- 
+---
 --- Note that every call creates an entirely new Endpoint object,
 --- if you want to share multiple operations under the same Endpoint, create it manually instead.
---- 
+---
 --- This is a shortcut to the following pattern:
 --- ```lua
 ---   local endpoint = Endpoint:new()
@@ -227,7 +227,6 @@ end
 function Routes:query(path, callback, operation)
   return self:define('query', path, callback, operation)
 end
-
 
 ---Appends a request hook scoped only to this Routes.
 ---Runs after App-level and Route-level request hooks.

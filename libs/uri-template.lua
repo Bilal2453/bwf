@@ -17,14 +17,14 @@ template.param_pattern = '%b{}'
 ---@return string
 ---@nodiscard
 function template.normalize(uri)
-	assert(type(uri) == 'string', 'bad argument #1 to normalize (expected string)')
-	local normalized = uri
-	normalized = normalized:gsub('^%s+', ''):gsub('%s+$', '')
-	normalized = ('/' .. normalized):gsub('[/]+', '/')
-	if #normalized > 1 and normalized:sub(-1) == '/' then
-		normalized = normalized:sub(1, -2)
-	end
-	return normalized
+  assert(type(uri) == 'string', 'bad argument #1 to normalize (expected string)')
+  local normalized = uri
+  normalized = normalized:gsub('^%s+', ''):gsub('%s+$', '')
+  normalized = ('/' .. normalized):gsub('[/]+', '/')
+  if #normalized > 1 and normalized:sub(-1) == '/' then
+    normalized = normalized:sub(1, -2)
+  end
+  return normalized
 end
 --[[
 assert(template.normalize('') == '/')
@@ -44,13 +44,13 @@ assert(template.normalize('/foo/bar') == '/foo/bar')
 ---@return string
 ---@nodiscard
 function template.join(...)
-	local parts = {...} --[[@as string[] ]]
-	local segments = {}
-	for _, part in ipairs(parts) do
-		part = template.normalize(part)
-		table.insert(segments, part)
-	end
-	return template.normalize(table.concat(segments, '/'))
+  local parts = { ... } --[[@as string[] ]]
+  local segments = {}
+  for _, part in ipairs(parts) do
+    part = template.normalize(part)
+    table.insert(segments, part)
+  end
+  return template.normalize(table.concat(segments, '/'))
 end
 --[[
 assert(template.join('') == '/')
@@ -65,7 +65,7 @@ assert(template.join('a/', '', ' b ', 'c') == '/a/b/c')
 --]]
 
 --- Returns whether a template string does not define a parameter.
---- 
+---
 --- E.x.
 --- ```lua
 --- template.isStatic("/foo/bar/") --> true.
@@ -75,12 +75,12 @@ assert(template.join('a/', '', ' b ', 'c') == '/a/b/c')
 ---@return boolean
 ---@nodiscard
 function template.isStatic(str)
-	return str:match('%p{}') ~= nil
+  return str:match('%p{}') ~= nil
 end
 
 --- Taken from Penlight; escapes a string to be string.match-safe
 local function escape(s)
-	return (s:gsub('[%-%.%+%[%]%(%)%$%^%%%?%*]','%%%1'))
+  return (s:gsub('[%-%.%+%[%]%(%)%$%^%%%?%*]', '%%%1'))
 end
 
 --- Given a dynamic template string, return a Lua pattern able to match this template.
@@ -89,8 +89,8 @@ end
 ---@return string
 ---@nodiscard
 function template.compileTemplate(str)
-	local pattern = escape(str):gsub(template.param_pattern, template.template_pattern)
-	return '^' .. pattern .. '$'
+  local pattern = escape(str):gsub(template.param_pattern, template.template_pattern)
+  return '^' .. pattern .. '$'
 end
 --[[
 assert(template.compileTemplate('/foo/{bar}') == '^/foo/([^/#?]+)$')
@@ -100,8 +100,8 @@ assert(template.compileTemplate('/foo/{bar}/a-{b}') == '^/foo/([^/#?]+)/a%-([^/#
 ]]
 
 --- Given a template path string, return an array of the parameters in the order they show in.
---- 
---- E.x. 
+---
+--- E.x.
 --- ```lua
 --- template.parseParams("/foo/{bar}/{id}") --> { "bar", "id" }
 --- ```
@@ -109,11 +109,11 @@ assert(template.compileTemplate('/foo/{bar}/a-{b}') == '^/foo/([^/#?]+)/a%-([^/#
 ---@return string[]
 ---@nodiscard
 function template.parseParams(str)
-	local params = {}
-	for name in string.gmatch(str, template.param_pattern) do
-		table.insert(params, name:sub(2, -2))
-	end
-	return params
+  local params = {}
+  for name in string.gmatch(str, template.param_pattern) do
+    table.insert(params, name:sub(2, -2))
+  end
+  return params
 end
 -- p(template.parseParams("/foo/{bar}/{id}"))
 -- p(template.parseParams("/foo/{bar}/prefix-{id}"))
@@ -122,20 +122,20 @@ end
 ---@return bwf.uri-template
 ---@nodiscard
 function template.parseTemplate(str)
-	if template.isStatic(str) then
-		return {
-			is_static = true,
-			pattern = '^' .. str .. '$',
-			path = str, -- TODO: might want to do template.sanitize to remove query/hash
-			params = {},
-		}
-	end
-	return {
-		is_static = false,
-		pattern = template.compileTemplate(str),
-		path = str,
-		params = template.parseParams(str),
-	}
+  if template.isStatic(str) then
+    return {
+      is_static = true,
+      pattern = '^' .. str .. '$',
+      path = str, -- TODO: might want to do template.sanitize to remove query/hash
+      params = {},
+    }
+  end
+  return {
+    is_static = false,
+    pattern = template.compileTemplate(str),
+    path = str,
+    params = template.parseParams(str),
+  }
 end
 
 return template

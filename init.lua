@@ -8,6 +8,10 @@ local Routes = require('Routes')
 
 -- TODO: proper localization framework
 -- TODO: OpenAPI serialization support
+-- TODO: IP utilities.
+-- TODO: socket life management.
+-- TODO: connection timeout management.
+-- TODO: rate-limits.
 
 return {
   App = App,
