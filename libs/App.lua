@@ -1,6 +1,6 @@
-local WeblitAdapter = require('backends/WeblitAdapter')
-local Routes = require('Routes')
 local Hook = require('Hook')
+local Routes = require('Routes')
+local WeblitAdapter = require('backends/WeblitAdapter')
 local core = require('core')
 local template = require('uri-template')
 
@@ -163,7 +163,7 @@ function App:matchPath(call)
     return self.static_paths[path]
   end
   for _, v in ipairs(self.compiled_paths) do
-    if string.match(path, v.pattern) then
+    if string.match(path.pathname, v.pattern) then
       return v
     end
   end
@@ -214,7 +214,6 @@ end
 function App:_dispatch(call)
   self:emit('_request_incoming', call)
 end
-
 
 --- Registers a new Endpoint using the `App.main_route`.
 ---

@@ -1,5 +1,8 @@
 local Adapter = require('./Adapter')
 local Call = require('Call')
+local core = require('core')
+local resolve = require('./resolve')
+
 local weblit_server = require('weblit-server')
 
 ---@class bwf.WeblitAdapter: bwf.Adapter
@@ -33,6 +36,7 @@ end
 
 function WeblitAdapter:adapt(req, res)
   return {
+    name = 'weblit',
     req = req,
     res = res,
   }
@@ -46,16 +50,14 @@ end
 
 ---@param call bwf.Call
 function WeblitAdapter:flush(call)
-  -- TODO: proper class type check
-  if not (call.state._backend and call.state._backend.res) then
+  if not core.instanceof(call, Call) or call.state._backend.name ~= 'weblit' then
     return nil, 'Invalid Call object'
   end
   local res = call.state._backend.res --[[@as weblit.res]]
 
   res.body = call.body
   res.code = call.code
-  res.headers = call.headers
-  res.keepAlive = call.keepAlive
+  res.headers = resolve.headersToPairs(call.headers)
   call.state.sent = true
   return true
 end
@@ -105,7 +107,7 @@ function WeblitAdapter:getHeaders(call)
       if type(headers[name]) == 'table' then
         table.insert(headers[name], value)
       else
-        headers[name] = {headers[name], value}
+        headers[name] = { headers[name], value }
       end
     else
       headers[name] = value

@@ -1,3 +1,4 @@
+local CallReq = require('CallReq')
 local core = require('core')
 local json = require('json')
 
@@ -6,18 +7,15 @@ local json = require('json')
 ---@field app bwf.App
 ---@field adapter bwf.Adapter
 ---@field req table
----@field headers table
+---@field headers {[string]: string | string[] | nil}
 ---@field body string
----@field keepAlive boolean
 ---@field state {sent: boolean, aborted: boolean, _backend: table} | table
 ---@field storage table # A plain Lua table used to store various data related to the Call, useful for interceptors.
 local Call = core.Object:extend()
 
 -- TODO: redesign Call.body to be a buffer instead of a string
 
--- TODO: (important) add a way to access parameters, queries and other parts of the request
-
--- TODO: nice URL parsing
+-- TODO: (important) add a way to access parameters
 
 -- TODO: investigate adding a Call._interceptors_stack for logging every interceptor that
 -- this Call object has gone through
@@ -26,6 +24,7 @@ local Call = core.Object:extend()
 
 -- TODO: a way to "abort" a call, whatever abort should mean
 
+---@param adapter bwf.Adapter
 function Call:initialize(app, adapter, backend_state)
   self.app = app
   self.adapter = adapter
@@ -35,40 +34,86 @@ function Call:initialize(app, adapter, backend_state)
     aborted = false,
     _backend = backend_state,
   }
+  self.storage = {} -- TODO: maybe add more restrictions or abstractions?
 
-  -- TODO MAIN 3: use the Adapter methods to build up the states instead of depending on backend_state
+  self.req = CallReq:new(self, adapter)
 
-  -- TODO: abstract this properly
-  self.req = setmetatable({}, {
-    __index = backend_state.req,
-    __newindex = function()
-      return error('Illegal operation: Call.req is read-only')
-    end,
-  })
-  self.headers = backend_state.res.headers
-  self.keepAlive = backend_state.res.keepAlive
+  self.headers = {}
   self.code = 404
   self.body = 'Not found'
 end
 
+--- Set a response header. The name is case-insensitive. If the value is an array the header will be set multiple times for each value.
+--- If the value is `nil` the header will be removed, similar to calling `Call:removeHeader(name)`.
 ---@param name string
----@param value any
----@return boolean? success, string? error_message
+---@param value string | string[]
+---@return boolean success
 function Call:setHeader(name, value)
-  -- TODO: when abstraction is done, make sure case-sensitivity is dealt with here
+  name = string.lower(name)
   if value == nil then
     self.headers[name] = nil
+  elseif type(value) == 'table' then
+    -- TODO: handle exceptions like Set-Cookies when serializing
+    self.headers[name] = value
   else
     self.headers[name] = tostring(value)
   end
   return true
 end
 
+--- Return a response header, if set.
+--- If the requested header is not set `default_value` is returned, which is `nil` by default.
 ---@param name string
----@return string?
+---@param default_value any
+---@return string|string[]|nil
 ---@nodiscard
-function Call:getHeader(name)
-  return self.headers[name]
+function Call:getHeader(name, default_value)
+  return self.headers[name] or default_value
+end
+
+--- Returns whether a header is set or not in the response.
+---@param name string
+---@return boolean
+---@nodiscard
+function Call:hasHeader(name)
+  return not not self.headers[name]
+end
+
+--- Removes and unset a response header. Does nothing if the header does not exists.
+---@param name string
+---@return string|string[]|nil
+function Call:removeHeader(name)
+  self.headers[name] = nil
+end
+
+--- Similar to `Call:setHeader` but if a header is already set it will add an additional field instead of overriding the old one.
+---@param name string
+---@param value string | string[]
+function Call:appendHeader(name, value)
+  if not value then
+    return
+  end
+  name = string.lower(name)
+
+  -- if no old value then we can just use setHeader
+  local old_value = self.headers[name]
+  if not old_value then
+    return self:setHeader(name, value)
+  end
+
+  -- combine old values with the new ones
+  if type(old_value) ~= 'table' then
+    old_value = { old_value }
+  end
+  if type(value) == 'table' then
+    for _, v in ipairs(value) do
+      old_value[#old_value + 1] = tostring(v)
+    end
+  else
+    old_value[#old_value + 1] = tostring(value)
+  end
+
+  self.headers[name] = old_value
 end
 
 ---@param status integer
@@ -120,8 +165,8 @@ end
 
 ---@param status integer? # Default: `301`.
 ---@return boolean? success, string? error_message
-function Call:redirect(url, status)
-  self:setHeader('Location', url)
+function Call:redirect(location, status)
+  self:setHeader('Location', url.percentEncode(location))
   self:setStatus(status or 301)
   return true
 end
