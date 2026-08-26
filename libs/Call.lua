@@ -1,6 +1,8 @@
 local CallReq = require('CallReq')
+local cookies = require('cookies')
 local core = require('core')
 local json = require('json')
+local url = require('uri')
 
 ---@class bwf.Call: luvit.core.Object
 ---@field new fun(self: self, app: bwf.App, adapter: bwf.Adapter, backend_stat: table)
@@ -171,11 +173,26 @@ function Call:redirect(location, status)
   return true
 end
 
+--- Sets a cookie on the User Agent client by sending a `Set-Cookie` header.
+---@param name string
+---@param value string | number
+---@param attributes? bwf.Cookies.attributes
+function Call:setCookie(name, value, attributes)
+  self:appendHeader('Set-Cookie', cookies.formatCookie(name, value, attributes))
+end
+
+--- Instructs the User Agent client to unset and remove a previously set cookie.
+--- Note that if the targeted cookie has a Path/Domain set then you must match them here as well.
+---@param name string
+---@param attributes? bwf.Cookies.attributes
+function Call:removeCookie(name, attributes)
+  attributes.maxAge = 0
+  self:appendHeader('Set-Cookie', cookies.formatCookie(name, '', attributes))
+end
+
 -- TODO: investigate the API design of the following ideas
 function Call:file() end
 function Call:render(template, data, status) end
-function Call:setCookie(name, value, options) end
-function Call:removeCookie(name) end
 
 ---@param error luvit.core.Error
 ---@param status integer?
