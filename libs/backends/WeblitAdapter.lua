@@ -114,6 +114,13 @@ function WeblitAdapter:getHeaders(call)
   end
   return headers
 end
+--- Return whether this Call was sent over a secure network (TLS encrypted socket) or not.
+---@param call bwf.Call
+---@return boolean
+---@nodiscard
+function WeblitAdapter:isSecure(call)
+  return call.state._backend.req.socket.tls or false
+end
 --- Return the full request payload as a Lua string.
 ---@param call bwf.Call
 ---@return string

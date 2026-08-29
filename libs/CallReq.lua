@@ -11,6 +11,7 @@ local uri = require('uri')
 ---@field address { ip: string, port: integer, family: string }
 ---@field version string
 ---@field type { type: string, parameters: {[string]: string} }?
+---@field protocol 'http' | 'https'
 local CallReq = core.Object:extend()
 
 local function parsePath(path)
@@ -31,13 +32,17 @@ end
 
 ---@param adapter bwf.Adapter
 function CallReq:initialize(call, adapter)
-  -- TODO: maybe add .host too?
   self.method = adapter:getMethod(call)
   self.headers = adapter:getHeaders(call) -- TODO: make headers table read-only?
   self.path = parsePath(adapter:getPath(call))
   self.address = adapter:getRemoteAddress(call)
   self.version = adapter:getVersion(call)
+
+  -- TODO: support for X-Forward-For / X-Forward-Proto / X-Forward-Host
+  -- and/or the modern Forwarded header defined in rfc7239
   self.type = mimetype:match(self:getHeader('content-type', '') --[[@as string]])
+  self.protocol = adapter:isSecure(call) and 'https' or 'http'
+  -- TODO: maybe add .host too?
 end
 
 --- Return a request header, if set.

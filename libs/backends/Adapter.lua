@@ -91,6 +91,13 @@ end
 function Adapter:getHeaders(call)
   error('NYI')
 end
+--- Return whether this Call was sent over a secure network (TLS encrypted socket) or not.
+---@param call bwf.Call
+---@return boolean
+---@nodiscard
+function Adapter:isSecure(call)
+  error('NYI')
+end
 --- Return the full request payload as a Lua string.
 ---@param call bwf.Call
 ---@return string
