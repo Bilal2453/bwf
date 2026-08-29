@@ -58,7 +58,6 @@ function WeblitAdapter:flush(call)
   res.body = call.body
   res.code = call.code
   res.headers = resolve.headersToPairs(call.headers)
-  call.state.sent = true
   return true
 end
 

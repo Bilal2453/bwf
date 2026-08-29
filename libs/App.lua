@@ -155,7 +155,7 @@ end
 
 --- Searches currently registered routes for the path of `call.path`.
 ---@param call bwf.Call
----@return bwf.App.compiled_path?
+---@return bwf.App.compiled_path?, string[]?
 ---@nodiscard
 function App:matchPath(call)
   local path = call.req.path
@@ -163,23 +163,27 @@ function App:matchPath(call)
     return self.static_paths[path]
   end
   for _, v in ipairs(self.compiled_paths) do
-    if string.match(path.pathname, v.pattern) then
-      return v
+    local matches = { string.match(path.pathname, v.pattern) }
+    if #matches > 0 then
+      return v, matches
     end
   end
 end
 
+---@param call bwf.Call
 function App:_handleCall(call)
   -- run the app-scope request hooks
   Hook.iter(call, self.hooks.request)
 
   -- find the Routes responsible for handling this call
-  local path = self:matchPath(call)
+  local path, matches = self:matchPath(call)
   if not path then
+    -- TODO: we still need to flush the response in this case
     return self:error('Route handler was not found')
   end
   local routes = path.routes
   local endpoint = path.endpoint
+  call:_setParams(path, matches)
 
   -- run the remaining request hooks: routes -> endpoint
   Hook.iter(call, routes.hooks.request)
@@ -207,6 +211,7 @@ function App:_handleCall(call)
     -- TODO: this error should probably be a panic because a flush shouldn't fail
     return self:error(err)
   end
+  call.state.sent = true
 end
 
 --- Handle an incoming request

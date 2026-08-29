@@ -17,12 +17,8 @@ local Call = core.Object:extend()
 
 -- TODO: redesign Call.body to be a buffer instead of a string
 
--- TODO: (important) add a way to access parameters
-
 -- TODO: investigate adding a Call._interceptors_stack for logging every interceptor that
 -- this Call object has gone through
-
--- TODO: might want a Call.store or similar data structure for holding data between hooks
 
 -- TODO: a way to "abort" a call, whatever abort should mean
 
@@ -33,6 +29,7 @@ function Call:initialize(app, adapter, backend_state)
   -- TODO: make sure states are properly updated
   self.state = {
     sent = false,
+    matched = false,
     aborted = false,
     _backend = backend_state,
   }
@@ -40,9 +37,49 @@ function Call:initialize(app, adapter, backend_state)
 
   self.req = CallReq:new(self, adapter)
 
+  self._compiled_path = nil
+  self._parameters = nil
   self.headers = {}
   self.code = 404
   self.body = 'Not found'
+end
+
+--- A private method called by the App instance when a matching route is found.
+--- We can only map out the parameters after we know what route to match, hence this method.
+---@param compiled_path bwf.App.compiled_path
+---@param matches string[]?
+function Call:_setParams(compiled_path, matches)
+  if self.state.matched then
+    -- this code path should be unreachable
+    error('This Call has already been matched')
+  end
+  self.state.matched = true
+  self._compiled_path = compiled_path
+  if matches then
+    local params = {}
+    for pos, name in ipairs(compiled_path.params) do
+      params[name] = matches[pos]
+    end
+    self._parameters = params
+  end
+end
+
+--- Retrieve a named path parameter.
+--- If this is executed before the routing phase (e.x. app-scope request hooks) there will be no parameters to return,
+--- therefore this method will raise an error, instead of just returning an ambiguous `nil` value.
+---@param name string
+---@param default_value any?
+---@return string?
+---@nodiscard
+function Call:getParam(name, default_value)
+  if not self.state.matched then
+    error('Cannot read the parameters before the routing phase has completed.')
+  end
+  if not self._parameters then
+    return
+  end
+  -- TODO: type coercion
+  return self._parameters[name] ~= nil and self._parameters[name] or default_value
 end
 
 --- Set a response header. The name is case-insensitive. If the value is an array the header will be set multiple times for each value.

@@ -9,7 +9,11 @@ local prod = module.Routes:new({
   prefix = '/api/prod/',
 })
 prod:get('/ping', function(call)
-  call:html('<h1>Pong!</h1>', 200)
+  if call:getParam('case') then
+    call:html(string.format('<h1>Pong, %s!</h1>', call:getParam('case')), 200)
+  else
+    call:html('<h1>Pong!</h1>', 200)
+  end
 end)
 
 local staging = module.Routes:new({
