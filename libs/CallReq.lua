@@ -1,7 +1,7 @@
 local core = require('core')
+local mimetype = require('mimetype')
 local querystring = require('queryparse')
 local uri = require('uri')
-local mimetype = require('mimetype')
 
 ---@class bwf.CallReq: luvit.core.Object
 ---@field new fun(self: self, call: bwf.Call, adapter: bwf.Adapter)

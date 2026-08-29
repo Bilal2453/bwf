@@ -47,6 +47,8 @@ local S = lpeg.S
 -- as "case insensitive".
 -- ********************************************************************
 
+-- TODO: rewrite as a lpeg.re grammar?
+
 local tspecials = S([=["(),/:;<=>?@[\]]=])
 local ichar = R('AZ') / string.lower + (R('!~') - tspecials)
 local itoken = Cs(ichar ^ 1)

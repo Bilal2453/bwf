@@ -1,8 +1,9 @@
 -- Copyright 2026 Truemedian
 -- See https://github.com/truemedian/gud/blob/something-new/deps/uri.lua
--- modifications:
+-- Bilal2453 modifications:
 --  - removed resolve due to path requirement
 --  - fixed userinfo not capturing percentDecode
+--  - fixed ipv6 parsing for compressed inputs
 
 local re = require('re')
 
@@ -50,7 +51,48 @@ function uri.percentDecode(str, space)
   return decoded
 end
 
-local grammar = re.compile(
+uri.grammar = {
+  tonumber = tonumber,
+  percentDecode = uri.percentDecode,
+}
+
+--- IPv4
+
+uri.grammar.ip4_address = re.compile([[
+    ip4_address <-  dec_octet '.' dec_octet '.' dec_octet '.' dec_octet
+    dec_octet   <-  '25' [0-5] / '2' [0-4] [0-9] / '1' [0-9] [0-9] / [1-9] [0-9]? / '0'
+]])
+
+--- IPv6
+
+uri.grammar.ip6_address = re.compile(
+  [[
+    ip6_address <-                                   ( h16 ':' )^6 ls32
+                /                               '::' ( h16 ':' )^5 ls32
+                / (                 h16 )?      '::' ( h16 ':' )^4 ls32
+                / ( ( h16 ':' )^-1 h16 )?       '::' ( h16 ':' )^3 ls32
+                / ( ( h16 ':' & h16 )^-2 h16 )? '::' ( h16 ':' )^2 ls32
+                / ( ( h16 ':' & h16 )^-3 h16 )? '::'   h16 ':'     ls32
+                / ( ( h16 ':' & h16 )^-4 h16 )? '::'               ls32
+                / ( ( h16 ':' & h16 )^-5 h16 )? '::'               h16
+                / ( ( h16 ':' & h16 )^-6 h16 )? '::'
+
+    ls32  <- ( h16 ':' h16 ) / %ip4_address
+    h16   <- [%x] [%x]^-3
+]],
+  uri.grammar
+)
+
+uri.grammar.ip6_literal = re.compile(
+  [[
+    ip_literal  <-  '[' {:hostname:  %ip6_address :} ']'
+]],
+  uri.grammar
+)
+
+--- URI
+
+uri.grammar.uri = re.compile(
   [[
     uri         <-  {| (scheme ':')? hierarchy ('?' query)? ('#' fragment)? !. |}
     scheme      <-  {:scheme: [%a] [%w+.-]* :}
@@ -60,24 +102,8 @@ local grammar = re.compile(
     userinfo    <-  {:user: {: ( percent_encoded / unreserved / sub_delims / ':' )* -> percentDecode :} :}
     port        <-  {:port: ( [0-9]+ ) -> tonumber :}
 
-    host        <-  ip_literal / {:hostname: ip4_address :} / {:hostname: hostname -> percentDecode :}
+    host        <-  %ip6_literal / {:hostname: %ip4_address :} / {:hostname: hostname -> percentDecode :}
     hostname    <- ( percent_encoded / unreserved / sub_delims )*
-
-    ip4_address <-  dec_octet '.' dec_octet '.' dec_octet '.' dec_octet
-    dec_octet   <-  '25' [0-5] / '2' [0-4] [0-9] / '1' [0-9] [0-9] / [1-9] [0-9]? / '0'
-
-    ip_literal  <-  '[' {:hostname:  ip6_address :} ']'
-    ip6_address <-                             ( h16 ':' )^6 ls32
-                /                         '::' ( h16 ':' )^5 ls32
-                / (                h16 )? '::' ( h16 ':' )^4 ls32
-                / ( ( h16 ':' )^-1 h16 )? '::' ( h16 ':' )^3 ls32
-                / ( ( h16 ':' )^-2 h16 )? '::' ( h16 ':' )^2 ls32
-                / ( ( h16 ':' )^-3 h16 )? '::'   h16 ':'     ls32
-                / ( ( h16 ':' )^-4 h16 )? '::'               ls32
-                / ( ( h16 ':' )^-5 h16 )? '::'               h16
-                / ( ( h16 ':' )^-6 h16 )? '::'
-    ls32        <- ( h16 ':' h16 ) / ip4_address
-    h16         <- [%x] [%x]^-3
 
     path        <-  {:path: pchar* ( '/' pchar* )* -> percentDecode :}
     query       <-  {:query: ( '/' / '?' / pchar )* -> percentDecode :}
@@ -88,10 +114,7 @@ local grammar = re.compile(
 
 	percent_encoded <- '%' %x %x
 ]],
-  {
-    tonumber = tonumber,
-    percentDecode = uri.percentDecode,
-  }
+  uri.grammar
 )
 
 --- @param info bwf.uri.parsed
@@ -145,7 +168,7 @@ end
 --- @param str string
 --- @return bwf.uri.parsed|nil parsed
 function uri.decode(str)
-  local parsed = grammar:match(str)
+  local parsed = uri.grammar.uri:match(str)
   if not parsed then
     return nil
   end
