@@ -1,6 +1,7 @@
 local core = require('core')
 local querystring = require('queryparse')
 local uri = require('uri')
+local mimetype = require('mimetype')
 
 ---@class bwf.CallReq: luvit.core.Object
 ---@field new fun(self: self, call: bwf.Call, adapter: bwf.Adapter)
@@ -9,6 +10,7 @@ local uri = require('uri')
 ---@field path { raw: string, pathname: string, querystring: string?, query: table? }
 ---@field address { ip: string, port: integer, family: string }
 ---@field version string
+---@field type { type: string, parameters: {[string]: string} }?
 local CallReq = core.Object:extend()
 
 local function parsePath(path)
@@ -29,11 +31,13 @@ end
 
 ---@param adapter bwf.Adapter
 function CallReq:initialize(call, adapter)
+  -- TODO: maybe add .host too?
   self.method = adapter:getMethod(call)
   self.headers = adapter:getHeaders(call) -- TODO: make headers table read-only?
   self.path = parsePath(adapter:getPath(call))
   self.address = adapter:getRemoteAddress(call)
   self.version = adapter:getVersion(call)
+  self.type = mimetype:match(self:getHeader('content-type', '') --[[@as string]])
 end
 
 --- Return a request header, if set.

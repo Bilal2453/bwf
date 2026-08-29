@@ -11,7 +11,7 @@ local url = require('uri')
 ---@field req table
 ---@field headers {[string]: string | string[] | nil}
 ---@field body string
----@field state {sent: boolean, aborted: boolean, _backend: table} | table
+---@field state { sent: boolean, matched: boolean, aborted: boolean, _backend: table } | table
 ---@field storage table # A plain Lua table used to store various data related to the Call, useful for interceptors.
 local Call = core.Object:extend()
 
