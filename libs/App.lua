@@ -2,9 +2,11 @@ local Hook = require('Hook')
 local Routes = require('Routes')
 local WeblitAdapter = require('backends/WeblitAdapter')
 local core = require('core')
+local default_serializers = require('serializers')
 local template = require('uri-template')
 
 -- TODO: update's App.port after :listen if it initially is 0 (random)
+-- TODO: document App class fields
 
 ---@class bwf.App.compiled_path: bwf.uri-template
 ---@field routes bwf.Routes
@@ -48,6 +50,12 @@ function App:initialize(interface)
   self.static_paths = {}
   self.compiled_paths = {}
   self._backend = WeblitAdapter:new(self)
+
+  self._serializers = {
+    app = {},
+    adapter = {},
+  }
+  self:_applyDefaultSerializers()
 end
 
 function App:start()
@@ -81,6 +89,45 @@ function App:stop()
   end
   self:emit('server_stopped')
   return true
+end
+
+---@alias bwf.App.serializer { phase: 'app' | 'adapter', serialize: (fun(call: bwf.Call): (string?, string?)), content_type?: string }
+
+--- Assign a new body type serializer, this allows one to do custom `Call.body = { type = 'my_type', data = my_data }`.
+---@param type_name string
+---@param data function | bwf.App.serializer
+function App:registerBodySerializer(type_name, data)
+  assert(type(type_name) == 'string', 'bad argument #2 to registerBodySerializer (expected a string)')
+  local t = type(data)
+  if t == 'function' then
+    data = {
+      serialize = data,
+    }
+  elseif t ~= 'table' then
+    error('bad argument #3 to registerBodySerializer (expected a table or a function)')
+  end
+  assert(type(data.serialize) == 'function', 'bad property value for data.serialize (expected a function)')
+
+  data.phase = data.phase or 'app'
+  if self._serializers[data.phase][type_name] then
+    error('"' .. type_name .. '" is already a registered body type name')
+  end
+  self._serializers[data.phase][type_name] = data
+end
+
+--- Retrieve an assigned body serializer.
+---@param type_name string
+---@param phase 'app' | 'adapter' | nil
+---@return bwf.App.serializer?
+function App:getBodySerializer(type_name, phase)
+  phase = phase or 'app'
+  return self._serializers[phase][type_name]
+end
+
+function App:_applyDefaultSerializers()
+  for t, s in pairs(default_serializers) do
+    self:registerBodySerializer(t, s)
+  end
 end
 
 -- investigate whether we need the following
@@ -208,7 +255,7 @@ function App:_handleCall(call)
   -- send the response
   local success, err = self._backend:flush(call)
   if not success then
-    -- TODO: this error should probably be a panic because a flush shouldn't fail
+    -- TODO: check if this is the right way to do error here, likely coming from serializer
     return self:error(err)
   end
   call.state.sent = true

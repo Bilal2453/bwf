@@ -50,14 +50,31 @@ end
 
 ---@param call bwf.Call
 function WeblitAdapter:flush(call)
+  -- the code might look slightly weird, because I can't flush the socket directly
+  -- instead I use the weblit server flushing mechanism which starts working once control is returned
+  -- here I prepare the response structure returning control
+
+  -- sanity check: make sure the call object is in the right context
   if not core.instanceof(call, Call) or call.state._backend.name ~= 'weblit' then
     return nil, 'Invalid Call object'
   end
   local res = call.state._backend.res --[[@as weblit.res]]
-
-  res.body = call.body
+  -- write the response code and headers
   res.code = call.code
   res.headers = resolve.headersToPairs(call.headers)
+  -- serialize the body if needed
+  local mode, serialize = call:_finalize()
+  if not mode then
+    error('Failed to serialize the body: ' .. tostring(serialize))
+  end
+  -- flush the body
+  if mode == 'app' then
+    -- write the serialized body
+    res.body = serialize --[[@as string]]
+  else
+    -- let the adapter serializer flush the body
+    serialize(call)
+  end
   return true
 end
 

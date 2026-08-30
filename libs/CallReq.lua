@@ -40,7 +40,7 @@ function CallReq:initialize(call, adapter)
 
   -- TODO: support for X-Forward-For / X-Forward-Proto / X-Forward-Host
   -- and/or the modern Forwarded header defined in rfc7239
-  self.type = mimetype:match(self:getHeader('content-type', '') --[[@as string]])
+  self.type = mimetype:match(self:getHeader('Content-Type', '') --[[@as string]])
   self.protocol = adapter:isSecure(call) and 'https' or 'http'
   -- TODO: maybe add .host too?
 end
@@ -81,5 +81,7 @@ end
 function CallReq:hasQuery(name)
   return not not self.path.query[name]
 end
+
+-- TODO MAIN 2: implement request payload reading
 
 return CallReq

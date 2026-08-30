@@ -1,16 +1,15 @@
 local CallReq = require('CallReq')
 local cookies = require('cookies')
 local core = require('core')
-local json = require('json')
 local url = require('uri')
 
 ---@class bwf.Call: luvit.core.Object
 ---@field new fun(self: self, app: bwf.App, adapter: bwf.Adapter, backend_stat: table)
 ---@field app bwf.App
 ---@field adapter bwf.Adapter
----@field req table
----@field headers {[string]: string | string[] | nil}
----@field body string
+---@field req bwf.CallReq
+---@field headers { [string]: string | string[] | nil }
+---@field body { type: string, data: any } | table
 ---@field state { sent: boolean, matched: boolean, aborted: boolean, _backend: table } | table
 ---@field storage table # A plain Lua table used to store various data related to the Call, useful for interceptors.
 local Call = core.Object:extend()
@@ -41,7 +40,43 @@ function Call:initialize(app, adapter, backend_state)
   self._parameters = nil
   self.headers = {}
   self.code = 404
-  self.body = 'Not found'
+  self.body = { type = 'raw', data = 'Not found' }
+end
+
+---@return 'app' | 'adapter' | nil, fun(call: bwf.Call) | string
+function Call:_finalize()
+  -- handle basic body types
+  if self.body.type == 'raw' then
+    if not self:hasHeader('Content-Type') then
+      self:setHeader('Content-Type', 'text/plain')
+    end
+    return 'app', self.body.data == nil and '' or tostring(self.body.data)
+  elseif self.body.type == 'empty' then
+    return 'app', ''
+  end
+  -- retrieve the serializer for this body type
+  local serializer = self.app:getBodySerializer(self.body.type, 'adapter')
+    or self.app:getBodySerializer(self.body.type, 'app')
+  if not serializer then
+    error('Unsupported body type ' .. tostring(self.body.type))
+  end
+  -- if the content type hasn't been set, try to guess it from serializer
+  if not self:hasHeader('Content-Type') and serializer.content_type then
+    self:setHeader('Content-Type', serializer.content_type)
+  end
+  -- serialize and return the results
+  if serializer.phase == 'app' then
+    local result, err = serializer.serialize(self)
+    if result and type(result) ~= 'string' then
+      error('Body serializer returned a non-string value: ' .. self.body.type)
+    elseif not result then
+      return nil, err --[[@as string]]
+    else
+      return 'app', result
+    end
+  else
+    return 'adapter', serializer.serialize
+  end
 end
 
 --- A private method called by the App instance when a matching route is found.
@@ -156,58 +191,62 @@ function Call:appendHeader(name, value)
 end
 
 ---@param status integer
----@return boolean? success, string? error_message
+---@return self
 function Call:setStatus(status)
   self.code = tonumber(status)
-  return true
+  return self
 end
 
 ---@param data table
 ---@param status integer?
----@return boolean? success, string? error_message
+---@return self
 function Call:json(data, status)
   if type(data) ~= 'table' then
-    return error('bad argument #2 to Call.json (expected table, got ' .. type(data) .. ')')
+    error('bad argument #2 to Call.json (expected table, got ' .. type(data) .. ')')
   end
-  local enc, err = json.encode(data)
-  if not enc then
-    return nil, err
-  end
-  self.body = enc --[[@as string]]
-  self:setHeader('Content-Type', 'application/json')
+  -- local enc, err = json.encode(data)
+  -- if not enc then
+  --   return nil, err
+  -- end
   self:setStatus(status or 200)
-  return true
+  self:setHeader('Content-Type', 'application/json')
+  self.body.type = 'json'
+  self.body.data = data
+  return self
 end
 
 ---@param text string
 ---@param status integer?
----@return boolean? success, string? error_message
+---@return self
 function Call:text(text, status, ...)
   if select('#', ...) > 0 then
     text = string.format(text, ...)
   end
-  self.body = text
-  self:setHeader('Content-Type', 'text/plain')
   self:setStatus(status or 200)
-  return true
+  self:setHeader('Content-Type', 'text/plain')
+  self.body.type = 'raw'
+  self.body.data = text
+  return self
 end
 
 ---@param html string
 ---@param status integer?
----@return boolean? success, string? error_message
+---@return self
 function Call:html(html, status)
-  self.body = html
-  self:setHeader('Content-Type', 'text/html')
   self:setStatus(status or 200)
-  return true
+  self:setHeader('Content-Type', 'text/html')
+  self.body.type = 'raw'
+  self.body.data = html
+  return self
 end
 
 ---@param status integer? # Default: `301`.
----@return boolean? success, string? error_message
+---@return self
 function Call:redirect(location, status)
-  self:setHeader('Location', url.percentEncode(location))
   self:setStatus(status or 301)
-  return true
+  self:setHeader('Location', url.percentEncode(location))
+  self.body.type = 'empty'
+  return self
 end
 
 --- Sets a cookie on the User Agent client by sending a `Set-Cookie` header.
