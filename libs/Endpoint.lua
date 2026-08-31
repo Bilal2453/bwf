@@ -63,76 +63,90 @@ end
 --- Overrides any previously defined operation.
 --- If the specified `method` is not a formal method, it will be treated as `Endpoints.additional_operations`.
 ---@param method bwf.alias.http_method
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
-function Endpoint:define(method, callback, operation)
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, method: bwf.alias.http_method, callback: bwf.alias.endpoint_callback): self
+---@return self
+function Endpoint:define(method, operation, callback)
+  if not callback then
+    operation, callback = nil, operation --[[@as bwf.alias.endpoint_callback]]
+  end
   method = string.lower(assert(method))
   local map = methods[method] and self.operations or self.additional_operations
   map[method] = { operation = operation, callback = callback }
   return self
 end
 
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Endpoint:get(callback, operation)
-  return self:define('get', callback, operation)
+function Endpoint:get(operation, callback)
+  return self:define('get', operation, callback)
 end
 
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Endpoint:put(callback, operation)
-  return self:define('put', callback, operation)
+function Endpoint:put(operation, callback)
+  return self:define('put', operation, callback)
 end
 
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Endpoint:post(callback, operation)
-  return self:define('post', callback, operation)
+function Endpoint:post(operation, callback)
+  return self:define('post', operation, callback)
 end
 
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Endpoint:delete(callback, operation)
-  return self:define('delete', callback, operation)
+function Endpoint:delete(operation, callback)
+  return self:define('delete', operation, callback)
 end
 
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Endpoint:options(callback, operation)
-  return self:define('options', callback, operation)
+function Endpoint:options(operation, callback)
+  return self:define('options', operation, callback)
 end
 
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Endpoint:head(callback, operation)
-  return self:define('head', callback, operation)
+function Endpoint:head(operation, callback)
+  return self:define('head', operation, callback)
 end
 
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Endpoint:patch(callback, operation)
-  return self:define('patch', callback, operation)
+function Endpoint:patch(operation, callback)
+  return self:define('patch', operation, callback)
 end
 
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Endpoint:trace(callback, operation)
-  return self:define('trace', callback, operation)
+function Endpoint:trace(operation, callback)
+  return self:define('trace', operation, callback)
 end
 
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Endpoint:query(callback, operation)
-  return self:define('query', callback, operation)
+function Endpoint:query(operation, callback)
+  return self:define('query', operation, callback)
 end
 
 --- pends a request hook scoped only to this Routes.

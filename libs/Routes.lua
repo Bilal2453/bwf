@@ -116,10 +116,14 @@ end
 --- Register an Endpoint object with the given path.
 --- `options` override the defaults specified in this Routes instance.
 ---@param path string
----@param endpoint bwf.Endpoint
 ---@param options bwf.Endpoint.options?
+---@param endpoint bwf.Endpoint
+---@overload fun(self: self, path: string, endpoint: bwf.Endpoint): self
 ---@return self
-function Routes:register(path, endpoint, options)
+function Routes:register(path, options, endpoint)
+  if not endpoint then
+    options, endpoint = nil, options --[[@as bwf.Endpoint]]
+  end
   path = template.normalize(path)
   options = resolveOptions(options, self)
   local struct = {
@@ -140,92 +144,105 @@ end
 --- This is a shortcut to the following pattern:
 --- ```lua
 ---   local endpoint = Endpoint:new()
----   endpoint:define(method, callback, operation)
+---   endpoint:define(method, operation, callback)
 ---   app:register(path, endpoint)
 --- ```
 ---@param method bwf.alias.http_method
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, method: bwf.alias.http_method, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:define(method, path, callback, operation)
+function Routes:define(method, path, operation, callback)
+  if not callback then
+    operation, callback = nil, operation --[[@as bwf.alias.endpoint_callback]]
+  end
   local endpoint = Endpoint:new()
-  endpoint:define(method, callback, operation)
+  endpoint:define(method, operation, callback)
   return self:register(path, endpoint)
 end
 
 --- Create and register a new Endpoint with the given path as a GET operation.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:get(path, callback, operation)
-  return self:define('get', path, callback, operation)
+function Routes:get(path, operation, callback)
+  return self:define('get', path, operation, callback)
 end
 
 --- Create and register a new Endpoint with the given path as a POST operation.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:post(path, callback, operation)
-  return self:define('post', path, callback, operation)
+function Routes:post(path, operation, callback)
+  return self:define('post', path, operation, callback)
 end
 
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:put(path, callback, operation)
-  return self:define('put', path, callback, operation)
+function Routes:put(path, operation, callback)
+  return self:define('put', path, operation, callback)
 end
 
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:delete(path, callback, operation)
-  return self:define('delete', path, callback, operation)
+function Routes:delete(path, operation, callback)
+  return self:define('delete', path, operation, callback)
 end
 
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:patch(path, callback, operation)
-  return self:define('patch', path, callback, operation)
+function Routes:patch(path, operation, callback)
+  return self:define('patch', path, operation, callback)
 end
 
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:options(path, callback, operation)
-  return self:define('options', path, callback, operation)
+function Routes:options(path, operation, callback)
+  return self:define('options', path, operation, callback)
 end
 
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:head(path, callback, operation)
-  return self:define('head', path, callback, operation)
+function Routes:head(path, operation, callback)
+  return self:define('head', path, operation, callback)
 end
 
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:trace(path, callback, operation)
-  return self:define('trace', path, callback, operation)
+function Routes:trace(path, operation, callback)
+  return self:define('trace', path, operation, callback)
 end
 
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function Routes:query(path, callback, operation)
-  return self:define('query', path, callback, operation)
+function Routes:query(path, operation, callback)
+  return self:define('query', path, operation, callback)
 end
 
 ---Appends a request hook scoped only to this Routes.

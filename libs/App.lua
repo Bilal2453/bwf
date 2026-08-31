@@ -275,90 +275,102 @@ end
 ---@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
 ---@return self
-function App:define(method, path, callback, operation)
-  self.main_route:define(method, path, callback, operation)
+function App:define(method, path, operation, callback)
+  if not callback then
+    operation, callback = nil, operation --[[@as bwf.alias.endpoint_callback]]
+  end
+  self.main_route:define(method, path, operation, callback)
   return self
 end
 
 --- Equivalent to `App.main_route:get()`.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function App:get(path, callback, operation)
-  return self:define('get', path, callback, operation)
+function App:get(path, operation, callback)
+  return self:define('get', path, operation, callback)
 end
 
 --- Equivalent to `App.main_route:post()`.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function App:post(path, callback, operation)
-  return self:define('post', path, callback, operation)
+function App:post(path, operation, callback)
+  return self:define('post', path, operation, callback)
 end
 
 --- Equivalent to `App.main_route:put()`.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function App:put(path, callback, operation)
-  return self:define('put', path, callback, operation)
+function App:put(path, operation, callback)
+  return self:define('put', path, operation, callback)
 end
 
 --- Equivalent to `App.main_route:delete()`.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function App:delete(path, callback, operation)
-  return self:define('delete', path, callback, operation)
+function App:delete(path, operation, callback)
+  return self:define('delete', path, operation, callback)
 end
 
 --- Equivalent to `App.main_route:patch()`.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function App:patch(path, callback, operation)
-  return self:define('patch', path, callback, operation)
+function App:patch(path, operation, callback)
+  return self:define('patch', path, operation, callback)
 end
 
 --- Equivalent to `App.main_route:options()`.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function App:options(path, callback, operation)
-  return self:define('options', path, callback, operation)
+function App:options(path, operation, callback)
+  return self:define('options', path, operation, callback)
 end
 
 --- Equivalent to `App.main_route:head()`.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function App:head(path, callback, operation)
-  return self:define('head', path, callback, operation)
+function App:head(path, operation, callback)
+  return self:define('head', path, operation, callback)
 end
 
 --- Equivalent to `App.main_route:trace()`.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function App:trace(path, callback, operation)
-  return self:define('trace', path, callback, operation)
+function App:trace(path, operation, callback)
+  return self:define('trace', path, operation, callback)
 end
 
 --- Equivalent to `App.main_route:query()`.
 ---@param path string
----@param callback bwf.alias.endpoint_callback
 ---@param operation bwf.Operation?
+---@param callback bwf.alias.endpoint_callback
+---@overload fun(self: self, path: string, callback: bwf.alias.endpoint_callback): self
 ---@return self
-function App:query(path, callback, operation)
-  return self:define('query', path, callback, operation)
+function App:query(path, operation, callback)
+  return self:define('query', path, operation, callback)
 end
 
 return App

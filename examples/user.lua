@@ -33,4 +33,34 @@ app:get('/users/{id}', function(call)
   end
 end)
 
+-- POST /users - create a new user
+app:post('/users', {
+  description = 'Create a new user',
+  body = {
+    content = {
+      ['application/json'] = true, -- true can be used to avoid a table allocation
+    },
+    required = true,
+  },
+}, function(call)
+  local payload = call.req.body
+
+  -- simple validation check (should later be handled by framework)
+  if not payload.username or not payload.email then
+    call:json({ error = 'Missing username or email' }, 400)
+    return
+  end
+
+  local new_id = #users + 1
+  local new_user = {
+    id = new_id,
+    username = payload.username,
+    email = payload.email,
+    role = payload.role or 'user',
+  }
+  users[tostring(new_id)] = new_user
+
+  call:json(new_user, 201)
+end)
+
 app:start()
