@@ -1,6 +1,6 @@
-local module = require('../init')
+local bwf = require('../init')
 
-local app = module.App:new({
+local app = bwf.App:new({
   host = '127.0.0.1',
   port = 8080,
 })
@@ -36,12 +36,7 @@ end)
 -- POST /users - create a new user
 app:post('/users', {
   description = 'Create a new user',
-  body = {
-    content = {
-      ['application/json'] = true, -- true can be used to avoid a table allocation
-    },
-    required = true,
-  },
+  body = bwf.builder.body('json', true),
 }, function(call)
   local payload = call.req.body
 

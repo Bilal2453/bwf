@@ -55,8 +55,8 @@ function Call:_finalize()
     return 'app', ''
   end
   -- retrieve the serializer for this body type
-  local serializer = self.app:getBodySerializer(self.body.type, 'adapter')
-    or self.app:getBodySerializer(self.body.type, 'app')
+  local serializer = self.app:getBodyEncoder(self.body.type, 'adapter')
+    or self.app:getBodyEncoder(self.body.type, 'app')
   if not serializer then
     error('Unsupported body type ' .. tostring(self.body.type))
   end

@@ -2,7 +2,7 @@ local Hook = require('Hook')
 local Routes = require('Routes')
 local WeblitAdapter = require('backends/WeblitAdapter')
 local core = require('core')
-local default_serializers = require('serializers')
+local default_encoders = require('encoders')
 local template = require('uri-template')
 
 -- TODO: update's App.port after :listen if it initially is 0 (random)
@@ -51,11 +51,11 @@ function App:initialize(interface)
   self.compiled_paths = {}
   self._backend = WeblitAdapter:new(self)
 
-  self._serializers = {
+  self._encoders = {
     app = {},
     adapter = {},
   }
-  self:_applyDefaultSerializers()
+  self:_applyDefaultEncoders()
 end
 
 function App:start()
@@ -96,7 +96,7 @@ end
 --- Assign a new body type serializer, this allows one to do custom `Call.body = { type = 'my_type', data = my_data }`.
 ---@param type_name string
 ---@param data function | bwf.App.serializer
-function App:registerBodySerializer(type_name, data)
+function App:registerBodyEncoder(type_name, data)
   assert(type(type_name) == 'string', 'bad argument #2 to registerBodySerializer (expected a string)')
   local t = type(data)
   if t == 'function' then
@@ -109,24 +109,24 @@ function App:registerBodySerializer(type_name, data)
   assert(type(data.serialize) == 'function', 'bad property value for data.serialize (expected a function)')
 
   data.phase = data.phase or 'app'
-  if self._serializers[data.phase][type_name] then
+  if self._encoders[data.phase][type_name] then
     error('"' .. type_name .. '" is already a registered body type name')
   end
-  self._serializers[data.phase][type_name] = data
+  self._encoders[data.phase][type_name] = data
 end
 
 --- Retrieve an assigned body serializer.
 ---@param type_name string
 ---@param phase 'app' | 'adapter' | nil
 ---@return bwf.App.serializer?
-function App:getBodySerializer(type_name, phase)
+function App:getBodyEncoder(type_name, phase)
   phase = phase or 'app'
-  return self._serializers[phase][type_name]
+  return self._encoders[phase][type_name]
 end
 
-function App:_applyDefaultSerializers()
-  for t, s in pairs(default_serializers) do
-    self:registerBodySerializer(t, s)
+function App:_applyDefaultEncoders()
+  for t, s in pairs(default_encoders) do
+    self:registerBodyEncoder(t, s)
   end
 end
 
