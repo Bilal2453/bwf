@@ -2,6 +2,7 @@ local Hook = require('Hook')
 local Routes = require('Routes')
 local WeblitAdapter = require('backends/WeblitAdapter')
 local core = require('core')
+local default_decoders = require('decoders')
 local default_encoders = require('encoders')
 local template = require('uri-template')
 
@@ -51,11 +52,10 @@ function App:initialize(interface)
   self.compiled_paths = {}
   self._backend = WeblitAdapter:new(self)
 
-  self._encoders = {
-    app = {},
-    adapter = {},
-  }
+  self._encoders = { app = {}, adapter = {} }
   self:_applyDefaultEncoders()
+  self._decoders = { app = {}, adapter = {} }
+  self:_applyDefaultDecoders()
 end
 
 function App:start()
@@ -91,34 +91,37 @@ function App:stop()
   return true
 end
 
----@alias bwf.App.serializer { phase: 'app' | 'adapter', serialize: (fun(call: bwf.Call): (string?, string?)), content_type?: string }
+---@alias bwf.App.encoder { phase: 'app' | 'adapter', encode: (fun(call: bwf.Call): (string?, string?)), content_type?: string }
 
---- Assign a new body type serializer, this allows one to do custom `Call.body = { type = 'my_type', data = my_data }`.
+--- Assign a new body type encoder, this allows one to do custom `Call.body = { type = 'my_type', data = my_data }`.
 ---@param type_name string
----@param data function | bwf.App.serializer
+---@param data function | bwf.App.encoder
 function App:registerBodyEncoder(type_name, data)
-  assert(type(type_name) == 'string', 'bad argument #2 to registerBodySerializer (expected a string)')
+  assert(type(type_name) == 'string', 'bad argument #2 to registerBodyEncoder (expected a string)')
   local t = type(data)
   if t == 'function' then
     data = {
-      serialize = data,
+      encode = data,
     }
   elseif t ~= 'table' then
-    error('bad argument #3 to registerBodySerializer (expected a table or a function)')
+    error('bad argument #3 to registerBodyEncoder (expected a table or a function)')
   end
-  assert(type(data.serialize) == 'function', 'bad property value for data.serialize (expected a function)')
+  assert(type(data.encode) == 'function', 'bad property value for data.encode (expected a function)')
 
   data.phase = data.phase or 'app'
+  if not self._encoders[data.phase] then
+    error('bad property value for data.phase (expected one of "app" or "adapter")')
+  end
   if self._encoders[data.phase][type_name] then
     error('"' .. type_name .. '" is already a registered body type name')
   end
   self._encoders[data.phase][type_name] = data
 end
 
---- Retrieve an assigned body serializer.
+--- Retrieve an assigned body encoder.
 ---@param type_name string
----@param phase 'app' | 'adapter' | nil
----@return bwf.App.serializer?
+---@param phase 'app' | 'adapter' | nil # default: `"app"`.
+---@return bwf.App.encoder?
 function App:getBodyEncoder(type_name, phase)
   phase = phase or 'app'
   return self._encoders[phase][type_name]
@@ -127,6 +130,49 @@ end
 function App:_applyDefaultEncoders()
   for t, s in pairs(default_encoders) do
     self:registerBodyEncoder(t, s)
+  end
+end
+
+---@alias bwf.App.decoder { phase?: 'app' | 'adapter', decode: (fun(raw_body: string, call: bwf.Call): any) | (fun(call: bwf.Call): any) }
+
+--- Assign a new request body decoder for a specific MIME type.
+---@param mime_type string
+---@param data function | bwf.App.decoder
+function App:registerBodyDecoder(mime_type, data)
+  assert(type(mime_type) == 'string', 'bad argument #2 to registerBodyDecoder (expected a string)')
+  local t = type(data)
+  if t == 'function' then
+    data = {
+      decode = data,
+    }
+  elseif t ~= 'table' then
+    error('bad argument #3 to registerBodyDecoder (expected a table or a function)')
+  end
+  assert(type(data.decode) == 'function', 'bad property value for data.decode (expected a function)')
+
+  data.phase = data.phase or 'app'
+  if not self._decoders[data.phase] then
+    error('bad property value for data.phase (expected one of "app" or "adapter")')
+  end
+
+  if self._decoders[data.phase][mime_type] then
+    error('"' .. mime_type .. '" is already a registered body decoder MIME type')
+  end
+  self._decoders[data.phase][mime_type] = data
+end
+
+--- Retrieve an assigned body decoder for a MIME type.
+---@param mime_type string
+---@param phase 'adapter' | 'app' | nil # default: `"app"`.
+---@return bwf.App.decoder?
+function App:getBodyDecoder(mime_type, phase)
+  phase = phase or 'app'
+  return self._decoders[phase][mime_type]
+end
+
+function App:_applyDefaultDecoders()
+  for mime, d in pairs(default_decoders) do
+    self:registerBodyDecoder(mime, d)
   end
 end
 
@@ -205,16 +251,62 @@ end
 ---@return bwf.App.compiled_path?, string[]?
 ---@nodiscard
 function App:matchPath(call)
-  local path = call.req.path
+  local path = template.normalize(call.req.path.pathname)
   if self.static_paths[path] then
     return self.static_paths[path]
   end
   for _, v in ipairs(self.compiled_paths) do
-    local matches = { string.match(path.pathname, v.pattern) }
+    local matches = { string.match(path, v.pattern) }
     if #matches > 0 then
       return v, matches
     end
   end
+end
+
+--- Handle request body decoding on _handleCall.
+--- A false return signals the handling should be aborted. true signals it should continue.
+---@param call bwf.Call
+---@param operation bwf.Operation?
+---@return boolean
+---@nodiscard
+function App:_handleDecoding(call, operation)
+  if not (operation and operation.body and operation.body.content and next(operation.body.content)) then
+    return true
+  end
+  local body, content = operation.body, operation.body.content --[[@cast body -nil]] --[[@cast content -nil]]
+  local req_type = call.req.type and call.req.type.name
+  if not req_type then
+    if body.required then
+      call:empty(400)
+      return false
+    end
+    return true
+  end
+  local mimetype_content = content[req_type]
+  if not mimetype_content then
+    call:empty(415)
+    return false
+  end
+  -- TODO: schema validation support.
+  -- Would be nice for the schema to be generic so users can register their own validators
+  -- maybe also invent a Lua table over the wire format?
+
+  local decoder = self:getBodyDecoder(req_type, 'adapter') or self:getBodyDecoder(req_type, 'app')
+  if not decoder then
+    return true
+  end
+  local success, result
+  if decoder.phase == 'adapter' then
+    success, result = pcall(decoder.decode, call)
+  else
+    success, result = pcall(decoder.decode, call.req:readBody(), call)
+  end
+  if not success or not result then
+    call:empty(400)
+    return false
+  end
+  call.req.body = result
+  return true
 end
 
 ---@param call bwf.Call
@@ -237,14 +329,21 @@ function App:_handleCall(call)
   Hook.iter(call, endpoint.hooks.request)
 
   -- find the operation handler
-  local operation, err = endpoint:findOperation(call)
-  if not operation then
+  local operation_struct, err = endpoint:findOperation(call)
+  if not operation_struct then
     return self:error(err)
   end
-  -- execute the operation handler
-  local success, err = pcall(operation.callback, call)
-  if not success then
-    return self:error(err)
+
+  -- handle request body decoding if configured on the operation
+  local operation = operation_struct.operation
+  local continue = self:_handleDecoding(call, operation)
+  if continue then
+    -- execute the operation handler
+    local success, err = pcall(operation_struct.callback, call)
+    if not success then
+      -- TODO: do we want to give hooks a chance to run as well?
+      return self:error(err)
+    end
   end
 
   -- run response hooks: endpoint -> routes -> app
@@ -255,7 +354,7 @@ function App:_handleCall(call)
   -- send the response
   local success, err = self._backend:flush(call)
   if not success then
-    -- TODO: check if this is the right way to do error here, likely coming from serializer
+    -- TODO: check if this is the right way to do error here, likely coming from encoder
     return self:error(err)
   end
   call.state.sent = true

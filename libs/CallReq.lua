@@ -5,12 +5,14 @@ local uri = require('uri')
 
 ---@class bwf.CallReq: luvit.core.Object
 ---@field new fun(self: self, call: bwf.Call, adapter: bwf.Adapter)
+---@field call bwf.Call
+---@field body any?
 ---@field method string
 ---@field headers { [string]: string|string[] }
 ---@field path { raw: string, pathname: string, querystring: string?, query: table? }
 ---@field address { ip: string, port: integer, family: string }
 ---@field version string
----@field type { type: string, parameters: {[string]: string} }?
+---@field type { name: string, parameters: {[string]: string} }?
 ---@field protocol 'http' | 'https'
 local CallReq = core.Object:extend()
 
@@ -32,6 +34,11 @@ end
 
 ---@param adapter bwf.Adapter
 function CallReq:initialize(call, adapter)
+  self.call = call
+  self._adapter = adapter
+  self._body_cache = nil
+
+  self.body = nil
   self.method = adapter:getMethod(call)
   self.headers = adapter:getHeaders(call) -- TODO: make headers table read-only?
   self.path = parsePath(adapter:getPath(call))
@@ -40,7 +47,10 @@ function CallReq:initialize(call, adapter)
 
   -- TODO: support for X-Forward-For / X-Forward-Proto / X-Forward-Host
   -- and/or the modern Forwarded header defined in rfc7239
-  self.type = mimetype:match(self:getHeader('Content-Type', '') --[[@as string]])
+  local parsed_mimetype = mimetype:match(self:getHeader('Content-Type', '') --[[@as string]])
+  if parsed_mimetype then
+    self.type = { name = parsed_mimetype.type, parameters = parsed_mimetype.parameters }
+  end
   self.protocol = adapter:isSecure(call) and 'https' or 'http'
   -- TODO: maybe add .host too?
 end
@@ -52,6 +62,7 @@ end
 ---@return string|string[]|nil
 ---@nodiscard
 function CallReq:getHeader(name, default_value)
+  name = string.lower(name)
   return self.headers[name] or default_value
 end
 
@@ -82,6 +93,14 @@ function CallReq:hasQuery(name)
   return not not self.path.query[name]
 end
 
--- TODO MAIN 2: implement request payload reading
+--- Reads the raw request body string, and caches the results.
+---@return string
+function CallReq:readBody()
+  if self._body_cache then
+    return self._body_cache
+  end
+  self._body_cache = self._adapter:readBodyAsString(self.call) or ''
+  return self._body_cache
+end
 
 return CallReq
