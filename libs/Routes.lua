@@ -138,9 +138,6 @@ end
 
 --- Create and register a new Endpoint and operation.
 ---
---- Note that every call creates an entirely new Endpoint object,
---- if you want to share multiple operations under the same Endpoint, create it manually instead.
----
 --- This is a shortcut to the following pattern:
 --- ```lua
 ---   local endpoint = Endpoint:new()
@@ -157,7 +154,8 @@ function Routes:define(method, path, operation, callback)
   if not callback then
     operation, callback = nil, operation --[[@as bwf.alias.endpoint_callback]]
   end
-  local endpoint = Endpoint:new()
+  local old_endpoint = self:getEndpoint(path)
+  local endpoint = old_endpoint and old_endpoint.endpoint or Endpoint:new()
   endpoint:define(method, operation, callback)
   return self:register(path, endpoint)
 end
