@@ -54,28 +54,27 @@ function Call:_finalize()
   elseif self.body.type == 'empty' then
     return 'app', ''
   end
-  -- retrieve the serializer for this body type
-  local serializer = self.app:getBodyEncoder(self.body.type, 'adapter')
-    or self.app:getBodyEncoder(self.body.type, 'app')
-  if not serializer then
+  -- retrieve the encoder for this body type
+  local encoder = self.app:getBodyEncoder(self.body.type, 'adapter') or self.app:getBodyEncoder(self.body.type, 'app')
+  if not encoder then
     error('Unsupported body type ' .. tostring(self.body.type))
   end
-  -- if the content type hasn't been set, try to guess it from serializer
-  if not self:hasHeader('Content-Type') and serializer.content_type then
-    self:setHeader('Content-Type', serializer.content_type)
+  -- if the content type hasn't been set, try to guess it from encoder
+  if not self:hasHeader('Content-Type') and encoder.content_type then
+    self:setHeader('Content-Type', encoder.content_type)
   end
-  -- serialize and return the results
-  if serializer.phase == 'app' then
-    local result, err = serializer.serialize(self)
+  -- encode and return the results
+  if encoder.phase == 'app' then
+    local result, err = encoder.encode(self)
     if result and type(result) ~= 'string' then
-      error('Body serializer returned a non-string value: ' .. self.body.type)
+      error('Body encoder returned a non-string value: ' .. self.body.type)
     elseif not result then
       return nil, err --[[@as string]]
     else
       return 'app', result
     end
   else
-    return 'adapter', serializer.serialize
+    return 'adapter', encoder.encode
   end
 end
 
@@ -204,14 +203,9 @@ function Call:json(data, status)
   if type(data) ~= 'table' then
     error('bad argument #2 to Call.json (expected table, got ' .. type(data) .. ')')
   end
-  -- local enc, err = json.encode(data)
-  -- if not enc then
-  --   return nil, err
-  -- end
   self:setStatus(status or 200)
   self:setHeader('Content-Type', 'application/json')
-  self.body.type = 'json'
-  self.body.data = data
+  self.body = { type = 'json', data = data }
   return self
 end
 
@@ -224,8 +218,7 @@ function Call:text(text, status, ...)
   end
   self:setStatus(status or 200)
   self:setHeader('Content-Type', 'text/plain')
-  self.body.type = 'raw'
-  self.body.data = text
+  self.body = { type = 'raw', data = text }
   return self
 end
 
@@ -235,8 +228,7 @@ end
 function Call:html(html, status)
   self:setStatus(status or 200)
   self:setHeader('Content-Type', 'text/html')
-  self.body.type = 'raw'
-  self.body.data = html
+  self.body = { type = 'raw', data = html }
   return self
 end
 
@@ -245,7 +237,15 @@ end
 function Call:redirect(location, status)
   self:setStatus(status or 301)
   self:setHeader('Location', url.percentEncode(location))
-  self.body.type = 'empty'
+  self.body = { type = 'empty' }
+  return self
+end
+
+---@param status integer
+---@return self
+function Call:empty(status)
+  self:setStatus(status or 204)
+  self.body = { type = 'empty' }
   return self
 end
 

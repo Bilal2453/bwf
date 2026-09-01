@@ -62,18 +62,18 @@ function WeblitAdapter:flush(call)
   -- write the response code and headers
   res.code = call.code
   res.headers = resolve.headersToPairs(call.headers)
-  -- serialize the body if needed
-  local mode, serialize = call:_finalize()
+  -- encode the body if needed
+  local mode, encode = call:_finalize()
   if not mode then
-    error('Failed to serialize the body: ' .. tostring(serialize))
+    error('Failed to encode the body: ' .. tostring(encode))
   end
   -- flush the body
   if mode == 'app' then
-    -- write the serialized body
-    res.body = serialize --[[@as string]]
+    -- write the encoded body
+    res.body = encode --[[@as string]]
   else
-    -- let the adapter serializer flush the body
-    serialize(call)
+    -- let the adapter encoder flush the body
+    encode(call)
   end
   return true
 end
