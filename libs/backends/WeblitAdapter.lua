@@ -63,7 +63,7 @@ function WeblitAdapter:flush(call)
   res.code = call.code
   res.headers = resolve.headersToPairs(call.headers)
   -- encode the body if needed
-  local mode, encode = call:_finalize()
+  local mode, encode = call:_finalize() --[[@diagnostic disable-line: invisible]]
   if not mode then
     error('Failed to encode the body: ' .. tostring(encode))
   end

@@ -12,10 +12,11 @@ local url = require('uri')
 ---@field body { type: string, data: any } | table
 ---@field state { sent: boolean, matched: boolean, aborted: boolean, _backend: table } | table
 ---@field storage table # A plain Lua table used to store various data related to the Call, useful for interceptors.
+---@field protected _compiled_path bwf.App.compiled_path?
+---@field protected _parameters {[string]: string?}?
 local Call = core.Object:extend()
 
--- TODO: redesign Call.body to be a buffer instead of a string
-
+-- TODO: a generic Call:respond(table[, response]) that uses the client Accept header for picking an encoder
 -- TODO: investigate adding a Call._interceptors_stack for logging every interceptor that
 -- this Call object has gone through
 
@@ -43,6 +44,7 @@ function Call:initialize(app, adapter, backend_state)
   self.body = { type = 'raw', data = 'Not found' }
 end
 
+---@protected
 ---@return 'app' | 'adapter' | nil, fun(call: bwf.Call) | string
 function Call:_finalize()
   -- handle basic body types
@@ -126,7 +128,6 @@ function Call:setHeader(name, value)
   if value == nil then
     self.headers[name] = nil
   elseif type(value) == 'table' then
-    -- TODO: handle exceptions like Set-Cookies when serializing
     self.headers[name] = value
   else
     self.headers[name] = tostring(value)
@@ -189,44 +190,45 @@ function Call:appendHeader(name, value)
   self.headers[name] = old_value
 end
 
+---@protected
 ---@param status integer
 ---@return self
-function Call:setStatus(status)
+function Call:_setStatus(status)
   self.code = tonumber(status)
   return self
 end
 
 ---@param data table
----@param status integer?
+---@param status integer? # Default: `200`.
 ---@return self
 function Call:json(data, status)
   if type(data) ~= 'table' then
     error('bad argument #2 to Call.json (expected table, got ' .. type(data) .. ')')
   end
-  self:setStatus(status or 200)
+  self:_setStatus(status or 200)
   self:setHeader('Content-Type', 'application/json')
   self.body = { type = 'json', data = data }
   return self
 end
 
 ---@param text string
----@param status integer?
+---@param status integer? # Default: `200`.
 ---@return self
 function Call:text(text, status, ...)
   if select('#', ...) > 0 then
     text = string.format(text, ...)
   end
-  self:setStatus(status or 200)
+  self:_setStatus(status or 200)
   self:setHeader('Content-Type', 'text/plain')
   self.body = { type = 'raw', data = text }
   return self
 end
 
 ---@param html string
----@param status integer?
+---@param status integer? # Default: `200`.
 ---@return self
 function Call:html(html, status)
-  self:setStatus(status or 200)
+  self:_setStatus(status or 200)
   self:setHeader('Content-Type', 'text/html')
   self.body = { type = 'raw', data = html }
   return self
@@ -235,7 +237,7 @@ end
 ---@param status integer? # Default: `301`.
 ---@return self
 function Call:redirect(location, status)
-  self:setStatus(status or 301)
+  self:_setStatus(status or 301)
   self:setHeader('Location', url.percentEncode(location))
   self.body = { type = 'empty' }
   return self
@@ -244,7 +246,7 @@ end
 ---@param status integer
 ---@return self
 function Call:empty(status)
-  self:setStatus(status or 204)
+  self:_setStatus(status or 204)
   self.body = { type = 'empty' }
   return self
 end
@@ -274,7 +276,7 @@ function Call:render(template, data, status) end
 ---@param status integer?
 function Call:abort(error, status)
   self.state.aborted = true -- TODO: we might want to set this to the error object instead
-  self:setStatus(status or 400)
+  self:_setStatus(status or 400)
   return error(error)
 end
 

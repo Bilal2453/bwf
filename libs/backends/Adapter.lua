@@ -107,22 +107,4 @@ function Adapter:readBodyAsString(call)
 end
 -- TODO other types of readBody methods
 
---- Represents an HTTP request, while abstracting backend details.
----@class bwf.Adapter.Adapted: table
---- The HTTP method as provided by the user agent.
---- No pre-processing is allowed to take effect on this string (e.x. lowercasing/stripping).
----@field method bwf.alias.http_method
---- The full unparsed untread URL as provided by the user agent.
----@field url string
---- The HTTP protocol version used for this request.
----@field version string
---- Whether this is an HTTP or an HTTPS request.
----@field protocol 'http' | 'https'
---- The remote IP address as resolved by the backend. This is the raw remote socket IP, not necessarily the same as the real remote IP.
----@field remote_ip string
---- The request headers as a map of the header name to the value, if the header is provided multiple times
---- the value must be an array of the provided values. All values must be strings.
----@field headers {[string]: string | string[]}
---- The payload of the HTTP request.
-
 return Adapter
