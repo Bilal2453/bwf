@@ -25,7 +25,7 @@ app:get('/users/{id}', function(call)
   if user then
     call:json(user, 200)
   else
-    call:json({ error = 'User not found' }, 404)
+    call:problem('User not found', 404)
   end
 end)
 
@@ -34,7 +34,7 @@ app:post('/users', {
   description = 'Create a new user',
   body = {
     content = {
-      ['application/json'] = {}, -- true can be used to avoid a table allocation
+      ['application/json'] = {}, -- TODO: true can be used to avoid a table allocation
     },
     required = true,
   },
@@ -43,8 +43,10 @@ app:post('/users', {
 
   -- simple validation check (should later be handled by framework)
   if not payload.username or not payload.email then
-    call:json({ error = 'Missing username or email' }, 400)
-    return
+    call:problem({
+      type = '/errors/users/invalid-user',
+      detail = 'Missing username or email',
+    })
   end
 
   local new_id = #users + 1

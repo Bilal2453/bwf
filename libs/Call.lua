@@ -1,3 +1,4 @@
+local http_status = require('http_status')
 local CallReq = require('CallReq')
 local cookies = require('cookies')
 local core = require('core')
@@ -248,6 +249,39 @@ end
 function Call:empty(status)
   self:_setStatus(status or 204)
   self.body = { type = 'empty' }
+  return self
+end
+
+---@class bwf.Call.problem: table
+---@field type string?
+---@field status integer?
+---@field title string?
+---@field detail string?
+---@field instance string?
+
+--- RFC 9457
+---@param problem table | string | nil
+---@param status integer? # Default: `400`.
+function Call:problem(problem, status)
+  -- evaluate the problem structure
+  local t = type(problem)
+  if problem == nil or t == 'string' then
+    problem = { detail = problem }
+  elseif t ~= 'table' then
+    error('bad argument #2 to Call.problem (expected table or string)')
+  end
+  if status ~= nil and problem.status ~= nil and problem.status ~= status then
+    error('Contradicting HTTP status code detected: A Problem Detail structure must match the set response code per RFC 9457')
+  end
+  -- set missing fields
+  status = status or problem.status or 400
+  problem.type = problem.type or 'about:blank'
+  problem.title = problem.title or http_status[status]
+  problem.status = status
+  problem.instance = problem.instance or self.req.path.pathname
+  -- set response
+  self:_setStatus(status)
+  self.body = { type = 'problem', data = problem }
   return self
 end
 

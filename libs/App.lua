@@ -277,14 +277,14 @@ function App:_handleDecoding(call, operation)
   local req_type = call.req.type and call.req.type.name
   if not req_type then
     if body.required then
-      call:empty(400)
+      call:problem('A request body is required', 400)
       return false
     end
     return true
   end
   local mimetype_content = content[req_type]
   if not mimetype_content then
-    call:empty(415)
+    call:problem(string.format('Unsupported Media Type: %s', req_type), 415)
     return false
   end
   -- TODO: schema validation support.
@@ -302,7 +302,7 @@ function App:_handleDecoding(call, operation)
     success, result = pcall(decoder.decode, call.req:readBody(), call)
   end
   if not success or not result then
-    call:empty(400)
+    call:problem('Malformed request payload', 400)
     return false
   end
   call.req.body = result
