@@ -13,6 +13,7 @@
 ---@field callbacks table? # TODO
 ---@field security table? # TODO
 ---@field servers table? # TODO
+---@field errors {[string]: bwf.Call.problem}?
 
 ---@class bwf.Parameter: table
 ---@field name string

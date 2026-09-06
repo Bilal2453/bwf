@@ -40,22 +40,10 @@ function Endpoint:findOperation(call)
   local method = call.req.method:lower()
   local operation = self.operations[method] or self.additional_operations[method] --[[@as bwf.alias.operation_struct|nil]]
   if not operation then
-    -- TODO: might want to use the future HttpError here instead
     return nil, 'no such operation was found in this endpoint'
   end
   return operation
 end
-
--- TODO: do we need this method at all?
---- Executed when the server has received a request, handle a Call object
---- by figuring out which Operation is exactly supposed to be called, then execute it.
--- -@param call bwf.Call
--- -@return boolean? success, string? error_message
--- function Endpoint:execute(call)
---   local operation = self:findOperation(call)
---   operation.callback(call)
---   return true
--- end
 
 --- Defines an action for an endpoint path.
 --- The callback is called when the specified HTTP method is sent to this endpoint.

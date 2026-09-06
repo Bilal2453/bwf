@@ -39,7 +39,7 @@ function Adapter:handler(...)
   return nil, 'NYI'
 end
 
---- Flush a call object, sending any unset responses and preparing for the write stream to be shutdown (if required).
+--- Flush a call object, sending any unsent responses and preparing for the write stream to be shutdown (if required).
 ---@param call bwf.Call
 ---@return boolean? success, string? error_message
 function Adapter:flush(call)
@@ -49,6 +49,15 @@ end
 --- Given the backend states build up the adapter's states preparing for Call creation.
 --- The exact structure returned is private to the adapter class and is free to store whatever it needs to.
 function Adapter:adapt(...)
+  return nil, 'NYI'
+end
+
+--- Forcibly aborts the call and terminates the underlying TCP socket.
+--- This should use a RST packet instead of FIN by default, unless `graceful` is `true` then it must use a FIN packet.
+---@param call bwf.Call
+---@param graceful boolean? # default: `false`.
+---@return boolean? success, string? error_message
+function Adapter:abort(call, graceful)
   return nil, 'NYI'
 end
 

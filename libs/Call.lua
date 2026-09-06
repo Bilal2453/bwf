@@ -1,7 +1,7 @@
-local http_status = require('http_status')
 local CallReq = require('CallReq')
 local cookies = require('cookies')
 local core = require('core')
+local http_status = require('http_status')
 local url = require('uri')
 
 ---@class bwf.Call: luvit.core.Object
@@ -11,7 +11,7 @@ local url = require('uri')
 ---@field req bwf.CallReq
 ---@field headers { [string]: string | string[] | nil }
 ---@field body { type: string, data: any } | table
----@field state { sent: boolean, matched: boolean, aborted: boolean, _backend: table } | table
+---@field state { sent: boolean, matched: boolean, aborted: boolean, errored: false | bwf.Call.problem, _backend: table } | table
 ---@field storage table # A plain Lua table used to store various data related to the Call, useful for interceptors.
 ---@field protected _compiled_path bwf.App.compiled_path?
 ---@field protected _parameters {[string]: string?}?
@@ -21,17 +21,15 @@ local Call = core.Object:extend()
 -- TODO: investigate adding a Call._interceptors_stack for logging every interceptor that
 -- this Call object has gone through
 
--- TODO: a way to "abort" a call, whatever abort should mean
-
 ---@param adapter bwf.Adapter
 function Call:initialize(app, adapter, backend_state)
   self.app = app
   self.adapter = adapter
-  -- TODO: make sure states are properly updated
   self.state = {
     sent = false,
     matched = false,
     aborted = false,
+    errored = false,
     _backend = backend_state,
   }
   self.storage = {} -- TODO: maybe add more restrictions or abstractions?
@@ -260,28 +258,35 @@ end
 ---@field instance string?
 
 --- RFC 9457
----@param problem table | string | nil
+---@param problem bwf.Call.problem | string | nil
 ---@param status integer? # Default: `400`.
 function Call:problem(problem, status)
   -- evaluate the problem structure
   local t = type(problem)
-  if problem == nil or t == 'string' then
-    problem = { detail = problem }
-  elseif t ~= 'table' then
+  local data = {}
+  if t == 'table' then
+    for k, v in pairs(problem) do
+      data[k] = v
+    end
+  elseif t == 'string' then
+    data.detail = problem
+  elseif problem ~= nil then
     error('bad argument #2 to Call.problem (expected table or string)')
   end
-  if status ~= nil and problem.status ~= nil and problem.status ~= status then
-    error('Contradicting HTTP status code detected: A Problem Detail structure must match the set response code per RFC 9457')
+  if status ~= nil and data.status ~= nil and data.status ~= status then
+    error(
+      'Contradicting HTTP status code detected: A Problem Detail structure must match the set response code per RFC 9457'
+    )
   end
   -- set missing fields
-  status = status or problem.status or 400
-  problem.type = problem.type or 'about:blank'
-  problem.title = problem.title or http_status[status]
-  problem.status = status
-  problem.instance = problem.instance or self.req.path.pathname
+  status = status or data.status or 400
+  data.type = data.type or 'about:blank'
+  data.title = data.title or http_status[status]
+  data.status = status
+  data.instance = data.instance or self.req.path.pathname
   -- set response
   self:_setStatus(status)
-  self.body = { type = 'problem', data = problem }
+  self.body = { type = 'problem', data = data }
   return self
 end
 
@@ -306,12 +311,33 @@ end
 function Call:file() end
 function Call:render(template, data, status) end
 
----@param error luvit.core.Error
----@param status integer?
-function Call:abort(error, status)
-  self.state.aborted = true -- TODO: we might want to set this to the error object instead
-  self:_setStatus(status or 400)
-  return error(error)
+--- Forcibly terminates network connections related to this Call.
+--- Only invoke this method when you *explicitly* want to drop the connection, otherwise you can send empty responses with `Call:empty()`.
+--- 
+--- By default, the connection will be hard terminated, but it's possible to terminate the connection more gracefully by setting `send_body` to `true`,
+--- which will send the Call.body with a `Connection: close` header then terminate the connection, this is the recommended behavior.
+--- The default is `false` only to prevent accidental leaks.
+--- 
+--- Example:
+--- ```lua
+--- call:problem('Maximum upload limit (10MiB) exceeded', 413)
+--- call:abort(true)
+--- ```
+---@param send_body boolean # Default: `false`.
+---@return self
+function Call:abort(send_body)
+  if self.state.aborted then
+    return self
+  end
+  self.state.aborted = true
+
+  if send_body and not self.state.sent then
+    self:setHeader('Connection', 'close')
+    self.adapter:flush(self)
+    self.state.sent = true
+  end
+  self.adapter:abort(self, send_body and true)
+  return self
 end
 
 return Call

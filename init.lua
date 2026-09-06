@@ -2,6 +2,8 @@ local App = require('App')
 local Endpoint = require('Endpoint')
 local Routes = require('Routes')
 
+-- TODO: bwf.builder.operation and bwf.builder.problem
+-- TODO: proper logging
 -- TODO: proper localization framework
 -- TODO: OpenAPI serialization support
 -- TODO: IP utilities.
@@ -14,7 +16,6 @@ local Routes = require('Routes')
 -- TODO: CORS hooks
 -- TODO: Memory limits? Body size safeguards?
 -- TODO: default headers hooks `HSTS, X-Content-Type-Options: nosniff, X-Frame-Options, Content-Security-Policy` etc
--- TODO: proper logging
 
 return {
   App = App,

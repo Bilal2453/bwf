@@ -48,6 +48,13 @@ function WeblitAdapter:handler(req, res)
   self.app:_dispatch(call)
 end
 
+local function checkInstance(call)
+  if not core.instanceof(call, Call) or call.state._backend.name ~= 'weblit' then
+    return nil, 'Invalid Call object'
+  end
+  return true
+end
+
 ---@param call bwf.Call
 function WeblitAdapter:flush(call)
   -- the code might look slightly weird, because I can't flush the socket directly
@@ -55,8 +62,9 @@ function WeblitAdapter:flush(call)
   -- here I prepare the response structure returning control
 
   -- sanity check: make sure the call object is in the right context
-  if not core.instanceof(call, Call) or call.state._backend.name ~= 'weblit' then
-    return nil, 'Invalid Call object'
+  local success, err = checkInstance(call)
+  if not success then
+    return nil, err
   end
   local res = call.state._backend.res --[[@as weblit.res]]
   -- write the response code and headers
@@ -65,7 +73,7 @@ function WeblitAdapter:flush(call)
   -- encode the body if needed
   local mode, encode = call:_finalize() --[[@diagnostic disable-line: invisible]]
   if not mode then
-    error('Failed to encode the body: ' .. tostring(encode))
+    return nil, 'Failed to encode the body: ' .. tostring(encode)
   end
   -- flush the body
   if mode == 'app' then
@@ -74,6 +82,37 @@ function WeblitAdapter:flush(call)
   else
     -- let the adapter encoder flush the body
     encode(call)
+  end
+  return true
+end
+
+local function close(socket, graceful)
+  if socket:is_closing() then
+    return true
+  end
+  if graceful then
+    return socket:close()
+  else
+    if socket.close_reset then
+      return socket:close_reset()
+    else
+      return socket:close()
+    end
+  end
+end
+
+---@param call bwf.Call
+---@param graceful boolean? # default: `false`.
+---@return boolean? success, string? error_message
+function WeblitAdapter:abort(call, graceful)
+  local success, err = checkInstance(call)
+  if not success then
+    return nil, err
+  end
+  local req = call.state._backend.req --[[@as weblit.req]]
+  local success, err = close(req.socket, graceful)
+  if not success then
+    return nil, err
   end
   return true
 end

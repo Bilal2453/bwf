@@ -46,7 +46,8 @@ app:post('/users', {
     call:problem({
       type = '/errors/users/invalid-user',
       detail = 'Missing username or email',
-    })
+    }, 400)
+    return
   end
 
   local new_id = #users + 1

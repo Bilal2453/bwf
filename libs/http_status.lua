@@ -1,9 +1,9 @@
-local status =  {
+local status = {
   [100] = 'Continue',
   [101] = 'Switching Protocols',
   [102] = 'Processing',
   [103] = 'Early Hints',
-  [104] = 'Upload Resumption Supported',    -- (TEMPORARY - registered 2024-11-13, extension registered 2025-09-15, expires 2026-11-13) 	[draft-ietf-httpbis-resumable-upload-05]
+  [104] = 'Upload Resumption Supported', -- (TEMPORARY - registered 2024-11-13, extension registered 2025-09-15, expires 2026-11-13) 	[draft-ietf-httpbis-resumable-upload-05]
   [200] = 'OK',
   [201] = 'Created',
   [202] = 'Accepted',
@@ -60,6 +60,8 @@ local status =  {
   [506] = 'Variant Also Negotiates',
   [507] = 'Insufficient Storage',
   [508] = 'Loop Detected',
-  [510] = 'Not Extended',                   -- (OBSOLETED)
+  [510] = 'Not Extended', -- (OBSOLETED)
   [511] = 'Network Authentication Required',
 }
+
+return status

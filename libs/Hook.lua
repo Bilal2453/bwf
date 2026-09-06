@@ -16,7 +16,6 @@ end
 ---@return boolean? success, string? error
 function Hook:eval(call)
   local success, err = pcall(self.call, call, self)
-  -- TODO: error handling
   if not success then
     return nil, err
   end
@@ -34,17 +33,6 @@ function Hook.resolve(hook)
     error('bad argument #2 (expected a valid hook)')
   end
   return hook_obj
-end
-
----@param call bwf.Call
----@param hooks bwf.Hook[]
-function Hook.iter(call, hooks)
-  for _, v in ipairs(hooks) do
-    local success, err = v:eval(call)
-    if not success then
-      return call.app:error(err)
-    end
-  end
 end
 
 return Hook
