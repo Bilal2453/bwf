@@ -313,11 +313,11 @@ function Call:render(template, data, status) end
 
 --- Forcibly terminates network connections related to this Call.
 --- Only invoke this method when you *explicitly* want to drop the connection, otherwise you can send empty responses with `Call:empty()`.
---- 
+---
 --- By default, the connection will be hard terminated, but it's possible to terminate the connection more gracefully by setting `send_body` to `true`,
 --- which will send the Call.body with a `Connection: close` header then terminate the connection, this is the recommended behavior.
 --- The default is `false` only to prevent accidental leaks.
---- 
+---
 --- Example:
 --- ```lua
 --- call:problem('Maximum upload limit (10MiB) exceeded', 413)

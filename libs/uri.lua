@@ -5,6 +5,7 @@
 --  - fixed userinfo not capturing percentDecode
 --  - fixed ipv6 parsing for compressed inputs
 
+local path = require('path')
 local re = require('re')
 
 --- @class bwf.uri
@@ -176,6 +177,47 @@ function uri.decode(str)
   return parsed
 end
 
--- TODO: add back resolve
+---@diagnostic disable: undefined-field
+
+--- @param base bwf.uri.parsed
+--- @param relative bwf.uri.parsed
+--- @return bwf.uri.parsed resolved
+function uri.resolve(base, relative)
+  local target = {
+    scheme = relative.scheme,
+    userinfo = relative.userinfo,
+    hostname = relative.hostname,
+    port = relative.port,
+    path = relative.path,
+    query = relative.query,
+    fragment = relative.fragment,
+  }
+
+  if relative.scheme then
+    target.path = path.posix.normalize(target.path)
+    return target
+  end
+
+  target.scheme = base.scheme
+  if relative.hostname then
+    target.path = path.posix.normalize(target.path)
+    return target
+  end
+
+  target.userinfo = base.userinfo
+  target.hostname = base.hostname
+  target.port = base.port
+  if relative.path == '' then
+    target.path = path.posix.normalize(base.path)
+    target.query = relative.query or base.query
+    return target
+  elseif relative.path:sub(1, 1) == '/' then
+    target.path = path.posix.normalize(target.path)
+    return target
+  else
+    target.path = path.posix.join(path.posix.dirname(base.path), relative.path)
+    return target
+  end
+end
 
 return uri

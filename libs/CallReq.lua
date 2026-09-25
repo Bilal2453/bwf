@@ -3,6 +3,11 @@ local mimetype = require('mimetype')
 local querystring = require('queryparse')
 local uri = require('uri')
 
+local _, luv = pcall(require, 'uv')
+if not luv then
+  luv = require('luv')
+end
+
 ---@class bwf.CallReq: luvit.core.Object
 ---@field new fun(self: self, call: bwf.Call, adapter: bwf.Adapter)
 ---@field call bwf.Call
@@ -37,6 +42,7 @@ function CallReq:initialize(call, adapter)
   self.call = call
   self._adapter = adapter
   self._body_cache = nil
+  self._spawn_time = luv.hrtime()
 
   self.body = nil
   self.method = adapter:getMethod(call)

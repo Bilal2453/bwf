@@ -4,7 +4,6 @@ local WeblitAdapter = require('backends/WeblitAdapter')
 local core = require('core')
 local default_decoders = require('decoders')
 local default_encoders = require('encoders')
-local http_status = require('http_status')
 local template = require('uri-template')
 
 -- TODO: update's App.port after :listen if it initially is 0 (random)
