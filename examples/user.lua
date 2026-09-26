@@ -5,6 +5,8 @@ local app = module.App:new({
   port = 8080,
 })
 
+local scope_logger = app.logger:child({ scope = 'user' })
+
 -- Mock database of users
 local users = {
   { id = 1, username = 'bilal', email = 'bilal@bilal0.com', role = 'admin' },
@@ -14,12 +16,14 @@ local users = {
 
 -- GET /users - list all users
 app:get('/users', function(call)
+  scope_logger:info('Found %d users', #users)
   call:json(users, 200)
 end)
 
 -- GET /users/{id} - get a specific user by ID
 app:get('/users/{id}', function(call)
   local id = tonumber(call:getParam('id'))
+  scope_logger:info('Requested user ID %s', id)
   local user = users[id]
 
   if user then
@@ -49,6 +53,7 @@ app:post('/users', {
     }, 400)
     return
   end
+  scope_logger:info('Creating user with name "%s"', payload.username)
 
   local new_id = #users + 1
   local new_user = {

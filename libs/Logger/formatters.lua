@@ -389,7 +389,7 @@ function formats.http.json(logger, sink, level, call, duration, time_sec, time_m
     method = call.req.method,
     path = call.req.path.raw,
     status = call.code,
-    duration = duration / 1e6,
+    duration_ms = duration / 1e6,
     ip = call.req.address.ip,
   }
 

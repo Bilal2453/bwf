@@ -1,7 +1,7 @@
 local App = require('App')
 local Endpoint = require('Endpoint')
-local Routes = require('Routes')
 local Logger = require('Logger')
+local Routes = require('Routes')
 
 return {
   App = App,

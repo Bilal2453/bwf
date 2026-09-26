@@ -28,10 +28,8 @@ local app = bwf.App:new({
 })
 
 app:get('/ping', function(call)
-  logger:http(call)
+  logger:info('handling request')
   call:html('<h1>Pong!</h1>', 200)
 end)
 
 app:start()
-
-logger:close()

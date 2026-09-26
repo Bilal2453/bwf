@@ -26,12 +26,12 @@
 
 ---@class weblit.router
 ---@field use fun(handler: weblit.handler): weblit.app
----@field route fun(options: {method?: weblit.httpmethods, path?: string, host?: string, filter?: (fun(req: weblit.req): boolean)}, handler: weblit.handler): weblit.app
+---@field route fun(options: {method: weblit.httpmethods?, path: string?, host: string?, filter: (fun(req: weblit.req): boolean)?}, handler: weblit.handler): weblit.app
 ---@field run weblit.handler
 
 ---@class weblit.server
 ---@field setRun fun(newRun: fun(req, res, go)): weblit.app
----@field bind fun(options: {host?: string, port?: integer, tls?: boolean}): weblit.app
+---@field bind fun(options: {host: string?, port: integer?, tls: boolean?}): weblit.app
 ---@field start fun(): weblit.app
 ---@field websocket fun(options: table, handler: weblit.handler): weblit.app
 

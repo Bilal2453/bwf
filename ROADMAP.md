@@ -58,10 +58,10 @@ Central task tracker for the planned release road stages.
 
 ## Milestone 4: Observability & Core Utilities
 
-- [ ] **Structured Logging Subsystem**
-  - [ ] Core `Logger` instance with configurable log levels (`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`).
-  - [ ] Child logger support (`logger:child{ ... }`) inheriting parent configuration while attaching request metadata (`req_id`, `ip`, `method`, `path`).
-  - [ ] Pluggable formatters (JSON for production/log aggregation, pretty ANSI colors for development).
+- [x] **Structured Logging Subsystem**
+  - [x] Core `Logger` instance with configurable log levels (`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`).
+  - [x] Child logger support (`logger:child{ ... }`) inheriting parent configuration while attaching request metadata (`req_id`, `ip`, `method`, `path`).
+  - [x] Pluggable formatters (JSON for production/log aggregation, pretty ANSI colors for development).
 - [ ] **Network & IP Utilities**
   - [ ] Client IP extraction supporting `X-Forwarded-For`, `X-Real-IP`, and RFC 7239 `Forwarded` headers with trusted proxy subnet filtering.
 - [ ] **Localization (i18n)**

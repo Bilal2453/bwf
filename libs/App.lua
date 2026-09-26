@@ -1,4 +1,5 @@
 local Hook = require('Hook')
+local Logger = require('Logger')
 local Routes = require('Routes')
 local WeblitAdapter = require('backends/WeblitAdapter')
 
@@ -6,9 +7,9 @@ local core = require('core')
 local default_decoders = require('decoders')
 local default_encoders = require('encoders')
 local template = require('uri-template')
+local termcolor = require('termcolor')
 
 -- TODO: update's App.port after :listen if it initially is 0 (random)
--- TODO: document App class fields
 
 ---@class bwf.App.compiled_path: bwf.uri-template
 ---@field routes bwf.Routes
@@ -18,12 +19,25 @@ local template = require('uri-template')
 ---@field host string
 ---@field port integer
 ---@field tls boolean?
+---@field logger bwf.Logger?
 
+local function defaultLogger()
+  local logger = Logger:new()
+  logger:addStream(io.stdout, {
+    level = Logger.level_values.info,
+    format = 'pretty',
+    color_mode = termcolor.preferredMode(),
+  })
+  return logger
+end
+
+---@return bwf.App.options
 local function resolveOptions(options)
   local resolved = {
     host = options.host,
     port = tonumber(options.port),
     tls = options.tls or false,
+    logger = options.logger or defaultLogger(),
   }
   if type(resolved.host) ~= 'string' then
     error('Invalid App option "host" (expected a string value)')
@@ -40,18 +54,28 @@ end
 --- - `_request_incoming` – the backend received an incoming request.
 ---@class bwf.App: luvit.core.Emitter
 ---@field new fun(self: self, options: bwf.App.options): bwf.App
----@field options bwf.App.options
+---@field _options bwf.App.options
 ---@field _backend bwf.Adapter
+---@field _encoders { app: { [string]: bwf.App.encoder }, adapter: { [string]: bwf.App.encoder } }
+---@field _decoders { app: { [string]: bwf.App.decoder }, adapter: { [string]: bwf.App.decoder } }
+---@field interface { host: string, port: integer, tls: boolean? }
+---@field logger bwf.Logger
 ---@field state { is_running: boolean, is_compiled: boolean }
 ---@field hooks { request: table, response: table, error: table }
 ---@field main_route bwf.Routes
 ---@field routes { [bwf.Routes]: true }
----@field static_paths {}
----@field compiled_paths {}
+---@field static_paths { [string]: bwf.App.compiled_path }
+---@field compiled_paths bwf.App.compiled_path[]
 local App = core.Emitter:extend()
 
 function App:initialize(options)
-  self.options = resolveOptions(options)
+  self._options = resolveOptions(options)
+  self.interface = {
+    host = self._options.host,
+    port = self._options.port,
+    tls = self._options.tls,
+  }
+  self.logger = self._options.logger
   self.state = {
     is_running = false,
     is_compiled = false,
@@ -212,19 +236,17 @@ function App:_error(problem, call, endpoint, routes)
     return self:_panic(call, err)
   end
   call.state.sent = true
+  self.logger:http(call)
 end
 
 --- Handles a hard crash gracefully and abort the call.
 ---@param call bwf.Call
 function App:_panic(call, err)
-  -- TODO: replace with our logger
-  io.stderr:write(
-    string.format(
-      '[BWF PANIC] A panic occurred while trying to handle "%s": %s\n%s\n',
-      call.req.path.pathname,
-      tostring(err),
-      debug.traceback()
-    )
+  self.logger:error(
+    'A panic occurred while trying to handle "%s": %s\n%s\n',
+    call.req.path.pathname,
+    err,
+    debug.traceback()
   )
   if call.state.sent then
     return
@@ -237,6 +259,7 @@ function App:_panic(call, err)
   call.body = { type = 'raw', data = 'Internal Server Error' }
   pcall(self._backend.flush, self._backend, call)
   call.state.sent = true
+  self.logger:http(call)
 end
 
 --- Handle an incoming Call request going through its entire lifecycle here.
@@ -303,6 +326,7 @@ function App:_handleCall(call)
     return self:_error({ status = 500, detail = err }, call, endpoint, routes)
   end
   call.state.sent = true
+  self.logger:http(call)
 end
 
 ---@return boolean? success, string? err_msg

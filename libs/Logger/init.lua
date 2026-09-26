@@ -117,7 +117,7 @@ function Logger:_resolveOptions(options)
     format = self._resolvers.format(self, options.format, 'pretty'),
     context = self._resolvers.context(options.context, {}),
     max_level = self._resolvers.level(options.max_level),
-    color_mode = self._resolvers.color_mode(options.color_mode, 24), -- TODO: auto-detect color mode
+    color_mode = self._resolvers.color_mode(options.color_mode, 0),
   }
   return resolved_options
 end
@@ -353,7 +353,13 @@ function Logger:http(call)
     if self._formatters.http[sink.format] then
       payload = self._formatters.http[sink.format](self, sink, level, call, duration, time_sec, time_ms)
     elseif self._formatters.general[sink.format] then
-      local msg = call.req.method .. ' ' .. call.req.path.raw .. ' ' .. call.code .. ' ' .. self._formatters.readableDuration(duration)
+      local msg = call.req.method
+        .. ' '
+        .. call.req.path.raw
+        .. ' '
+        .. call.code
+        .. ' '
+        .. self._formatters.readableDuration(duration)
       payload = self._formatters.general[sink.format](self, sink, level, msg, time_sec, time_ms)
     else
       error('bug (unreachable code): no formatter for the specified sink format was found')
