@@ -88,17 +88,19 @@ local function resolveOptions(options, routes)
   end
 
   if options.parameters then
-    local parameters = {}
-    for _, inherited in ipairs(routes.parameters) do
-      local param = inherited
-      for _, matched in ipairs(parameters) do
-        if matched.name == param.name then
-          param = matched
-        end
+    local parameters, overridden = {}, {}
+    for _, param in ipairs(options.parameters) do
+      table.insert(parameters, param)
+      overridden[param.name] = true
+    end
+    for _, param in ipairs(routes.parameters) do
+      if not overridden[param.name] then
+        table.insert(parameters, param)
       end
     end
     resolved.parameters = parameters
   end
+
   if options.responses then
     local responses = {}
     for code, res in pairs(routes.responses) do
