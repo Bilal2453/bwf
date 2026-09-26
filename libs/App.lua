@@ -112,10 +112,15 @@ end
 ---@return boolean
 ---@nodiscard
 function App:_handleDecoding(call, operation)
-  if not (operation and operation.body and operation.body.content and next(operation.body.content)) then
+  -- is there any defined content to decode?
+  if not operation or not operation.body then
     return true
   end
   local body, content = operation.body, operation.body.content --[[@cast body -nil]] --[[@cast content -nil]]
+  if not content or not next(content) then
+    return true
+  end
+  -- if Content-Type was not provided behave as if no body was supplied
   local req_type = call.req.type and call.req.type.name
   if not req_type then
     if body.required then
@@ -124,6 +129,7 @@ function App:_handleDecoding(call, operation)
     end
     return true
   end
+  -- figure out the mime type
   local mimetype_content = content[req_type]
   if not mimetype_content then
     call:problem(string.format('Unsupported Media Type: %s', req_type), 415)
@@ -133,10 +139,12 @@ function App:_handleDecoding(call, operation)
   -- Would be nice for the schema to be generic so users can register their own validators
   -- maybe also invent a Lua table over the wire format?
 
+  -- pick a decoder for the specified content type
   local decoder = self:getBodyDecoder(req_type, 'adapter') or self:getBodyDecoder(req_type, 'app')
   if not decoder then
     return true
   end
+  -- do the decoding depending on the decoder mode
   local success, result
   if decoder.phase == 'adapter' then
     success, result = pcall(decoder.decode, call)

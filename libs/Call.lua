@@ -64,19 +64,19 @@ function Call:_finalize()
   if not self:hasHeader('Content-Type') and encoder.content_type then
     self:setHeader('Content-Type', encoder.content_type)
   end
-  -- encode and return the results
-  if encoder.phase == 'app' then
-    local result, err = encoder.encode(self)
-    if result and type(result) ~= 'string' then
-      error('Body encoder returned a non-string value: ' .. self.body.type)
-    elseif not result then
-      return nil, err --[[@as string]]
-    else
-      return 'app', result
-    end
-  else
+  -- don't encode adapter-phase payloads
+  if encoder.phase == 'adapter' then
     return 'adapter', encoder.encode
   end
+  -- encode and return the results
+  local result, err = encoder.encode(self)
+  if not result then
+    return nil, err --[[@as string]]
+  end
+  if type(result) ~= 'string' then
+    error('Body encoder returned a non-string value: ' .. self.body.type)
+  end
+  return 'app', result
 end
 
 --- A private method called by the App instance when a matching route is found.
