@@ -4,6 +4,11 @@
 ---@field path string
 ---@field params string[]
 
+--- Taken from Penlight; escapes a string to be string.match-safe
+local function escape(s)
+  return (s:gsub('[%-%.%+%[%]%(%)%$%^%%%?%*]', '%%%1'))
+end
+
 local template = {}
 
 template.template_pattern = '([^/#?]+)'
@@ -75,13 +80,14 @@ assert(template.join('a/', '', ' b ', 'c') == '/a/b/c')
 ---@return boolean
 ---@nodiscard
 function template.isStatic(str)
-  return str:match('%p{}') ~= nil
+  return not (string.match(escape(str), template.param_pattern))
 end
-
---- Taken from Penlight; escapes a string to be string.match-safe
-local function escape(s)
-  return (s:gsub('[%-%.%+%[%]%(%)%$%^%%%?%*]', '%%%1'))
-end
+--[[
+assert(template.isStatic('/foo/bar') == true)
+assert(template.isStatic('/foo/{bar}/{a}') == false)
+assert(template.isStatic('/') == true)
+assert(template.isStatic('/foo/bar/a-{b}') == false)
+]]
 
 --- Given a dynamic template string, return a Lua pattern able to match this template.
 --- Note that the given string must not contain more than the path, so no query, hash, etc.
