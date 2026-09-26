@@ -18,9 +18,15 @@ function WeblitAdapter:start()
   local server = weblit_server.newServer(function(...)
     return self:handler(...)
   end)
-  server.bind(self.app.interface)
-  server.start()
 
+  local interface = {
+    host = assert(self.app.options.host, 'Invalid host option'),
+    port = assert(tonumber(self.app.options.port), 'Invalid port option'),
+    tls = self.app.options.tls,
+  }
+  server.bind(interface)
+
+  server.start()
   return true
 end
 

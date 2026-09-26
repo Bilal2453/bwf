@@ -1,6 +1,7 @@
 local Hook = require('Hook')
 local Routes = require('Routes')
 local WeblitAdapter = require('backends/WeblitAdapter')
+
 local core = require('core')
 local default_decoders = require('decoders')
 local default_encoders = require('encoders')
@@ -13,28 +14,44 @@ local template = require('uri-template')
 ---@field routes bwf.Routes
 ---@field endpoint bwf.Endpoint
 
+---@class bwf.App.options: table
+---@field host string
+---@field port integer
+---@field tls boolean?
+
+local function resolveOptions(options)
+  local resolved = {
+    host = options.host,
+    port = tonumber(options.port),
+    tls = options.tls or false,
+  }
+  if type(resolved.host) ~= 'string' then
+    error('Invalid App option "host" (expected a string value)')
+  end
+  if not resolved.port then
+    error('Invalid App option "port" (expected a number value)')
+  end
+  return resolved
+end
+
 --- ### Events emitted:
 --- - `server_aborted` – the server aborted its execution abnormally.
 --- - `server_stopped` – the server has exited it normally.
 --- - `_request_incoming` – the backend received an incoming request.
 ---@class bwf.App: luvit.core.Emitter
----@field new fun(self: self, interface: {host: string, port: integer, tls?: boolean}): bwf.App
----@field interface {host: string, port: integer, tls?: boolean}
+---@field new fun(self: self, options: bwf.App.options): bwf.App
+---@field options bwf.App.options
 ---@field _backend bwf.Adapter
----@field state {is_running: boolean, is_compiled: boolean}
----@field hooks {request: table, response: table, error: table}
+---@field state { is_running: boolean, is_compiled: boolean }
+---@field hooks { request: table, response: table, error: table }
 ---@field main_route bwf.Routes
----@field routes {[bwf.Routes]: true}
+---@field routes { [bwf.Routes]: true }
 ---@field static_paths {}
 ---@field compiled_paths {}
 local App = core.Emitter:extend()
 
-function App:initialize(interface)
-  self.interface = interface or {
-    host = '127.0.0.1',
-    port = 8080,
-    tls = false,
-  }
+function App:initialize(options)
+  self.options = resolveOptions(options)
   self.state = {
     is_running = false,
     is_compiled = false,
@@ -288,6 +305,7 @@ function App:_handleCall(call)
   call.state.sent = true
 end
 
+---@return boolean? success, string? err_msg
 function App:start()
   if self.state.is_running then
     return nil, 'Server is already running'
@@ -309,9 +327,10 @@ function App:start()
   return true
 end
 
+---@return boolean? success, string? err_msg
 function App:stop()
   if not self.state.is_running then
-    return
+    return true
   end
   local success, err = self._backend:stop()
   if not success then
@@ -326,6 +345,7 @@ end
 --- Assign a new body type encoder, this allows one to do custom `Call.body = { type = 'my_type', data = my_data }`.
 ---@param type_name string
 ---@param data function | bwf.App.encoder
+---@return self
 function App:registerBodyEncoder(type_name, data)
   assert(type(type_name) == 'string', 'bad argument #2 to registerBodyEncoder (expected a string)')
   local t = type(data)
@@ -346,6 +366,8 @@ function App:registerBodyEncoder(type_name, data)
     error('"' .. type_name .. '" is already a registered body type name')
   end
   self._encoders[data.phase][type_name] = data
+
+  return self
 end
 
 --- Retrieve an assigned body encoder.
@@ -368,6 +390,7 @@ end
 --- Assign a new request body decoder for a specific MIME type.
 ---@param mime_type string
 ---@param data function | bwf.App.decoder
+---@return self
 function App:registerBodyDecoder(mime_type, data)
   assert(type(mime_type) == 'string', 'bad argument #2 to registerBodyDecoder (expected a string)')
   local t = type(data)
@@ -389,6 +412,8 @@ function App:registerBodyDecoder(mime_type, data)
     error('"' .. mime_type .. '" is already a registered body decoder MIME type')
   end
   self._decoders[data.phase][mime_type] = data
+
+  return self
 end
 
 --- Retrieve an assigned body decoder for a MIME type.

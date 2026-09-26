@@ -121,7 +121,7 @@ end
 --- If the value is `nil` the header will be removed, similar to calling `Call:removeHeader(name)`.
 ---@param name string
 ---@param value string | string[]
----@return boolean success
+---@return self
 function Call:setHeader(name, value)
   name = string.lower(name)
   if value == nil then
@@ -131,7 +131,7 @@ function Call:setHeader(name, value)
   else
     self.headers[name] = tostring(value)
   end
-  return true
+  return self
 end
 
 --- Return a response header, if set.
@@ -154,24 +154,27 @@ end
 
 --- Removes and unset a response header. Does nothing if the header does not exists.
 ---@param name string
----@return string|string[]|nil
+---@return self
 function Call:removeHeader(name)
   self.headers[name] = nil
+  return self
 end
 
 --- Similar to `Call:setHeader` but if a header is already set it will add an additional field instead of overriding the old one.
 ---@param name string
 ---@param value string | string[]
+---@return self
 function Call:appendHeader(name, value)
   if not value then
-    return
+    return self
   end
   name = string.lower(name)
 
   -- if no old value then we can just use setHeader
   local old_value = self.headers[name]
   if not old_value then
-    return self:setHeader(name, value)
+    self:setHeader(name, value)
+    return self
   end
 
   -- combine old values with the new ones
@@ -187,6 +190,7 @@ function Call:appendHeader(name, value)
   end
 
   self.headers[name] = old_value
+  return self
 end
 
 ---@protected
@@ -295,7 +299,7 @@ end
 ---@param value string | number
 ---@param attributes? bwf.Cookies.attributes
 function Call:setCookie(name, value, attributes)
-  self:appendHeader('Set-Cookie', cookies.formatCookie(name, value, attributes))
+  return self:appendHeader('Set-Cookie', cookies.formatCookie(name, value, attributes))
 end
 
 --- Instructs the User Agent client to unset and remove a previously set cookie.
@@ -303,8 +307,9 @@ end
 ---@param name string
 ---@param attributes? bwf.Cookies.attributes
 function Call:removeCookie(name, attributes)
+  attributes = attributes or {}
   attributes.maxAge = 0
-  self:appendHeader('Set-Cookie', cookies.formatCookie(name, '', attributes))
+  return self:appendHeader('Set-Cookie', cookies.formatCookie(name, '', attributes))
 end
 
 -- TODO: investigate the API design of the following ideas
