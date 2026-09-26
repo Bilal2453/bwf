@@ -520,6 +520,22 @@ function App:generateOpenAPI()
   -- TODO
 end
 
+local function fill(t, ...)
+  local old_n = t.n or 0
+  local n = select('#', ...)
+  for i = 1, n do
+    t[i] = select(i, ...)
+  end
+  t.n = n
+  if old_n > n then
+    for i = n + 1, old_n do
+      t[i] = nil
+    end
+  end
+  return t
+end
+
+local _match_buf = { n = 0 }
 --- Searches currently registered routes for the path of `call.path`.
 ---@param call bwf.Call
 ---@return bwf.App.compiled_path?, string[]?
@@ -530,8 +546,9 @@ function App:matchPath(call)
     return self.static_paths[path]
   end
   for _, v in ipairs(self.compiled_paths) do
-    local matches = { string.match(path, v.pattern) }
-    if #matches > 0 then
+    -- using fill to avoid allocating useless empty tables
+    local matches = fill(_match_buf, string.match(path, v.pattern))
+    if matches[1] then
       return v, matches
     end
   end
