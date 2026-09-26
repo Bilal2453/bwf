@@ -15,7 +15,8 @@ end
 ---@field format bwf.Logger.formats?
 ---@field level integer?
 ---@field context table?
----@field color_mode bwf.Logger.color_mode
+---@field max_level integer?
+---@field color_mode bwf.Logger.color_mode?
 
 ---@alias bwf.logger.sink.type 'stream' | 'file'
 
@@ -25,6 +26,7 @@ end
 ---@field level integer
 ---@field format bwf.Logger.formats
 ---@field handle table | file*
+---@field max_level integer
 ---@field color_mode bwf.Logger.color_mode
 
 ---@class bwf.Logger: luvit.core.Object
@@ -114,6 +116,7 @@ function Logger:_resolveOptions(options)
     level = self._resolvers.level(options.level, 3),
     format = self._resolvers.format(self, options.format, 'pretty'),
     context = self._resolvers.context(options.context, {}),
+    max_level = self._resolvers.level(options.max_level),
     color_mode = self._resolvers.color_mode(options.color_mode, 24), -- TODO: auto-detect color mode
   }
   return resolved_options
@@ -131,10 +134,19 @@ function Logger:initialize(options)
   self._min_used_level = self.options.level
 end
 
---- Adds an active I/O stream or file handle destination (must implement `:write(str)`).
---- Compatible with standard Lua `io.stdout`/`io.stderr`, Luvit `process.stdout`, or libuv handles.
----@param stream table | file* # Object implementing `:write(str)`
----@param options? { level: bwf.Logger.level?, format: bwf.Logger.formats?, color_mode: bwf.Logger.color_mode?, close: boolean?, }
+--- Performs level comparison between a target level and a sink's level
+--- to decide whether a log entry should be dispatched or not.
+function Logger:_compareLevel(level, sink)
+  if sink.max_level and level > sink.max_level then
+    return false
+  end
+  return level >= sink.level
+end
+
+--- Adds a stream object as a sink downstream, where stream is a file-like interface.
+--- A stream interface must implement `Stream:write(string_data)`, and optionally `stream:close()`.
+---@param stream { write: fun(data: string), close?: function } | file*
+---@param options? bwf.Logger.options | { close: boolean? }
 ---@return self
 function Logger:addStream(stream, options)
   if not stream.write then
@@ -143,20 +155,24 @@ function Logger:addStream(stream, options)
   if self._handles[stream] then
     error('provided stream is already added')
   end
+
   options = options or {}
   local level = self._resolvers.level(options.level, self.options.level)
+
   table.insert(self.sinks, {
     handle = stream,
     type = 'stream',
     close = options.close and true or false,
     level = level,
     format = self._resolvers.format(self, options.format, self.options.format),
+    max_level = self._resolvers.level(options.max_level, self.options.max_level),
     color_mode = self._resolvers.color_mode(options.color_mode, self.options.color_mode),
   })
   self._handles[stream] = true
   if level < self._min_used_level then
     self._min_used_level = level
   end
+
   return self
 end
 
@@ -185,29 +201,40 @@ function Logger:_openLog(file_path)
   }
 end
 
---- Appends logs to a filesystem path.
---- Manages opening in append mode, writing, and closing on teardown.
----@param file string # Absolute or relative file path
----@param options? { level: bwf.Logger.level?, format: bwf.Logger.formats?, color_mode: bwf.Logger.color_mode? }
+--- Adds a file as a sink downstream.
+--- The file path must be a valid relative/absolute destination the data will be appended to without truncation.
+---@param file string
+---@param options? bwf.Logger.options
 function Logger:addFile(file, options)
   assert(type(file) == 'string', 'bad argument #2 to Logger.addFile (expected string)')
   options = options or {}
   local handle = self:_openLog(file)
   local level = self._resolvers.level(options.level, self.options.level)
+  local max_level = self._resolvers.level(options.max_level, self.options.max_level)
+  if max_level and level > max_level then
+    error('bad options.max_level (max_level cannot be lower than level)')
+  end
+
   table.insert(self.sinks, {
     type = 'file',
     handle = handle,
     close = true,
     level = level,
+    max_level = max_level,
     format = self._resolvers.format(self, options.format, self.options.format),
     color_mode = self._resolvers.color_mode(options.color_mode, 0),
   })
   if level < self._min_used_level then
     self._min_used_level = level --[[@as integer]]
   end
+
   return self
 end
 
+--- Writes a log payload to the specified sink.
+---@param sink bwf.Logger.sink
+---@param payload string
+---@return boolean success, string? err_msg
 function Logger:_dispatch(sink, payload)
   local success, err = pcall(sink.handle.write, sink.handle, payload)
   if not success then
@@ -216,7 +243,7 @@ function Logger:_dispatch(sink, payload)
       string.format('[Logger Error]: A write operation on a sink failed: "%s" when trying to log "%s"\n', err, payload)
     pcall(io.stderr.write, io.stderr, msg)
   end
-  return success, err
+  return success, err --[[@as string?]]
 end
 
 --- Dispatches a log entry to all configured outputs if the level passes the threshold.
@@ -224,25 +251,32 @@ end
 ---@param message string
 ---@param ... any # Format arguments
 function Logger:log(level, message, ...)
+  if self._closed then
+    return
+  end
   level = self._resolvers.level(level)
   if level < self._min_used_level then
     return
   end
+
   local time_sec, time_usec = luv.gettimeofday()
   message = tostring(assert(message, 'bad argument #3 to Logger.log (expected string)'))
   if select('#', ...) > 0 then
     message = string.format(message, ...)
   end
+
   for _, sink in ipairs(self.sinks) do
-    if level < sink.level then
+    if not self:_compareLevel(level, sink) then
       goto continue
     end
+
     local formatter = assert(
       self._formatters.general[sink.format],
       'bug (unreachable code): no formatter for the specified sink format was found'
     )
     local payload = formatter(self, sink, level, message, time_sec, math.floor(time_usec / 1000))
     self:_dispatch(sink, payload)
+
     ::continue::
   end
 end
@@ -283,11 +317,12 @@ function Logger:fatal(message, ...)
   return self:log('fatal', message, ...)
 end
 
---- Specialized high-speed formatter for completed HTTP requests.
---- Formats method, path, status pill, and duration (µs/ms) for pretty streams,
---- or emits structured request metrics for JSON sinks.
 ---@param call bwf.Call
 function Logger:http(call)
+  if self._closed then
+    return
+  end
+
   local level = 5
   if call.code >= 500 then
     level = 5
@@ -310,7 +345,7 @@ function Logger:http(call)
   local time_ms = math.floor(time_usec / 1000)
 
   for _, sink in ipairs(self.sinks) do
-    if level < sink.level then
+    if not self:_compareLevel(level, sink) then
       goto continue
     end
 
@@ -324,6 +359,7 @@ function Logger:http(call)
       error('bug (unreachable code): no formatter for the specified sink format was found')
     end
     self:_dispatch(sink, payload)
+
     ::continue::
   end
 end
