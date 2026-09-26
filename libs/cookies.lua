@@ -6,7 +6,7 @@ local function parseCookies(header)
   if not header then
     return result
   end
-  -- TODO: make sure we are parsing cookies right
+  -- TODO: fix parsing empty values (e.x. "session=;") and quoted values (e.x. 'session="...";')
   for name, value in header:gmatch('%s*([^=;]+)=([^;]+);?%s*') do
     result[name] = percentDecode(value)
   end
