@@ -2,7 +2,7 @@ local CallReq = require('CallReq')
 local cookies = require('cookies')
 local core = require('core')
 local http_status = require('http_status')
-local url = require('uri')
+local uri = require('uri')
 
 ---@class bwf.Call: luvit.core.Object
 ---@field new fun(self: self, app: bwf.App, adapter: bwf.Adapter, backend_stat: table)
@@ -237,11 +237,31 @@ function Call:html(html, status)
   return self
 end
 
+---@param location string | bwf.uri.parsed
 ---@param status integer? # Default: `301`.
 ---@return self
 function Call:redirect(location, status)
+  -- decode the provided location
+  local location_decoded
+  local location_t = type(location)
+  if location_t == 'string' then
+    location_decoded = assert(uri.decode(location), 'invalid location URI to Call.redirect')
+  elseif location_t == 'table' then
+    location_decoded = location
+  else
+    error('bad argument #2 to Call.redirect (expected a string or a table)')
+  end
+  -- figure out if it's a relative location
+  if not location_decoded.scheme and not location_decoded.hostname and location_decoded.path:sub(1, 1) ~= '/' then
+    location = uri.resolve(self.req._parsed_path, location_decoded) --[[@diagnostic disable-line: invisible]]
+  end
+  -- encode the location URI if needed
+  if type(location) == 'table' then
+    location = uri.encode(location)
+  end
+  -- finalize the request
   self:_setStatus(status or 301)
-  self:setHeader('Location', url.percentEncode(location))
+  self:setHeader('Location', location)
   self.body = { type = 'empty' }
   return self
 end

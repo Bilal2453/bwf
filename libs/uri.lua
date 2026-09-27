@@ -1,9 +1,10 @@
 -- Copyright 2026 Truemedian
 -- See https://github.com/truemedian/gud/blob/something-new/deps/uri.lua
 -- Bilal2453 modifications:
---  - removed resolve due to path requirement
 --  - fixed userinfo not capturing percentDecode
 --  - fixed ipv6 parsing for compressed inputs
+--  - fixed path rule capturing precedence on inputs such as `"info"`
+--  - removed percentDecode from the query rule (it messes decoding querystring up due to %26 &)
 
 local path = require('path')
 local re = require('re')
@@ -100,14 +101,14 @@ uri.grammar.uri = re.compile(
     hierarchy   <-  ('//' authority path) / path
 
     authority   <-  (userinfo '@')? host (':' port)?
-    userinfo    <-  {:user: {: ( percent_encoded / unreserved / sub_delims / ':' )* -> percentDecode :} :}
+    userinfo    <-  {:userinfo: {: ( percent_encoded / unreserved / sub_delims / ':' )* -> percentDecode :} :}
     port        <-  {:port: ( [0-9]+ ) -> tonumber :}
 
     host        <-  %ip6_literal / {:hostname: %ip4_address :} / {:hostname: hostname -> percentDecode :}
     hostname    <- ( percent_encoded / unreserved / sub_delims )*
 
-    path        <-  {:path: pchar* ( '/' pchar* )* -> percentDecode :}
-    query       <-  {:query: ( '/' / '?' / pchar )* -> percentDecode :}
+    path        <-  {:path: ( pchar* ( '/' pchar* )* ) -> percentDecode :}
+    query       <-  {:query: ( '/' / '?' / pchar )* :}
     fragment    <-  {:fragment: ( '/' / '?' / pchar )* -> percentDecode :}
     pchar       <-  percent_encoded / unreserved / sub_delims / [:@]
     unreserved  <-  [%w._~-]

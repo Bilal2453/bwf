@@ -15,6 +15,7 @@ end
 ---@field method string
 ---@field headers { [string]: string|string[] }
 ---@field path { raw: string, pathname: string, querystring: string?, query: table? }
+---@field protected _parsed_path bwf.uri.parsed
 ---@field address { ip: string, port: integer, family: string }
 ---@field version string
 ---@field type { name: string, parameters: {[string]: string} }?
@@ -34,7 +35,7 @@ local function parsePath(path)
     pathname = parsed.path,
     querystring = parsed.query,
     query = query,
-  }
+  }, parsed
 end
 
 ---@param adapter bwf.Adapter
@@ -47,7 +48,7 @@ function CallReq:initialize(call, adapter)
   self.body = nil
   self.method = adapter:getMethod(call)
   self.headers = adapter:getHeaders(call) -- TODO: make headers table read-only?
-  self.path = parsePath(adapter:getPath(call))
+  self.path, self._parsed_path = parsePath(adapter:getPath(call))
   self.address = adapter:getRemoteAddress(call)
   self.version = adapter:getVersion(call)
 
