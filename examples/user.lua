@@ -67,4 +67,8 @@ app:post('/users', {
   call:json(new_user, 201)
 end)
 
-app:start()
+app:get('/stop', function(call)
+  assert(app:stop())
+end)
+
+assert(app:run())

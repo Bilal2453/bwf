@@ -367,6 +367,22 @@ function App:start()
 end
 
 ---@return boolean? success, string? err_msg
+function App:run()
+  local co, is_main = coroutine.running()
+  if not co or is_main then
+    return error('Cannot yield the main thread')
+  end
+  local success, err = self:start()
+  if not success then
+    return nil, err
+  end
+  self:on('server_stopped', function()
+    coroutine.resume(co, true)
+  end)
+  return coroutine.yield()
+end
+
+---@return boolean? success, string? err_msg
 function App:stop()
   if not self.state.is_running then
     return true
@@ -375,6 +391,7 @@ function App:stop()
   if not success then
     return nil, err
   end
+  self.state.is_running = false
   self:emit('server_stopped')
   return true
 end
