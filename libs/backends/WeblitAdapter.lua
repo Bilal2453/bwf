@@ -1,8 +1,11 @@
 local Adapter = require('./Adapter')
 local Call = require('Call')
-local core = require('core')
-local resolve = require('./resolve')
 
+local core = require('core')
+local coro_net = require('coro-net')
+local helpers = require('helpers')
+local http_codec = require('http-codec')
+local resolve = require('./resolve')
 local weblit_server = require('weblit-server')
 
 ---@class bwf.WeblitAdapter: bwf.Adapter
@@ -18,9 +21,27 @@ function WeblitAdapter:start()
   local server = weblit_server.newServer(function(...)
     return self:handler(...)
   end)
-  server.bind(self.app.interface)
 
-  server.start()
+  -- weblit does not expose the server TCP socket
+  -- so we have to instead use coro-net directly instead of server.start
+  local handle_connection = assert(
+    helpers.getUpvalue(server.start, 'handleConnection'),
+    'Could not extract handleConnection upvalue from weblit-server'
+  )
+  local options = {
+    host = self.app.interface.host,
+    port = self.app.interface.port,
+    tls = self.app.interface.tls,
+    decoder = http_codec.decoder,
+    encoder = http_codec.encoder,
+  }
+
+  local success, server_socket = pcall(coro_net.createServer, options, handle_connection)
+  if not success then
+    return nil, server_socket
+  end
+  self.server = server_socket --[[@as uv_tcp_t]]
+
   return true
 end
 
@@ -28,9 +49,10 @@ function WeblitAdapter:stop()
   if not self.server then
     return nil, 'Server is already closed'
   end
-  self.server:close(function()
-    self.server = nil
-  end)
+  if not self.server:is_closing() then
+    self.server:close()
+  end
+  self.server = nil
   return true
 end
 
