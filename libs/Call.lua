@@ -39,8 +39,8 @@ function Call:initialize(app, adapter, backend_state)
   self._compiled_path = nil
   self._parameters = nil
   self.headers = {}
-  self.code = 404
-  self.body = { type = 'raw', data = 'Not found' }
+  self.code = 204
+  self.body = { type = 'empty' }
 end
 
 ---@protected
