@@ -6,6 +6,7 @@ local WeblitAdapter = require('backends/WeblitAdapter')
 local core = require('core')
 local default_decoders = require('decoders')
 local default_encoders = require('encoders')
+local helpers = require('helpers')
 local template = require('uri-template')
 local termcolor = require('termcolor')
 
@@ -215,6 +216,12 @@ function App:_error(problem, call, endpoint, routes)
 
   -- sanitize the 5xx errors to prevent error leaks
   if problem.status >= 500 then
+    self.logger:error(
+      'Internal server error while handling "%s %s": %s',
+      call.req.method,
+      call.req.path.raw,
+      problem.detail or 'unknown error'
+    )
     problem = {
       status = problem.status or 500,
     }
@@ -250,7 +257,7 @@ end
 --- Handles a hard crash gracefully and abort the call.
 ---@param call bwf.Call
 function App:_panic(call, err)
-  self.logger:error(
+  self.logger:fatal(
     'A panic occurred while trying to handle "%s": %s\n%s\n',
     call.req.path.pathname,
     err,
@@ -311,7 +318,7 @@ function App:_handleCall(call)
   local continue = self:_handleDecoding(call, operation)
   if continue then
     -- execute the operation handler
-    local success, err = pcall(operation_struct.callback, call)
+    local success, err = xpcall(operation_struct.callback, debug.traceback, call)
     if not success then
       return self:_error({ status = 500, detail = err }, call, endpoint, routes)
     end
@@ -350,7 +357,7 @@ function App:start()
     self:_handleCall(call)
   end)
 
-  local success, err = self._backend:start()
+  local success, err = pcall(self._backend.start, self._backend)
   if not success then
     self.state.is_running = false
     self:emit('server_aborted', err)
@@ -528,21 +535,6 @@ function App:generateOpenAPI()
   -- TODO
 end
 
-local function fill(t, ...)
-  local old_n = t.n or 0
-  local n = select('#', ...)
-  for i = 1, n do
-    t[i] = select(i, ...)
-  end
-  t.n = n
-  if old_n > n then
-    for i = n + 1, old_n do
-      t[i] = nil
-    end
-  end
-  return t
-end
-
 local _match_buf = { n = 0 }
 --- Searches currently registered routes for the path of `call.path`.
 ---@param call bwf.Call
@@ -555,7 +547,7 @@ function App:matchPath(call)
   end
   for _, v in ipairs(self.compiled_paths) do
     -- using fill to avoid allocating useless empty tables
-    local matches = fill(_match_buf, string.match(path, v.pattern))
+    local matches = helpers.fill(_match_buf, string.match(path, v.pattern))
     if matches[1] then
       return v, matches
     end
