@@ -258,11 +258,7 @@ end
 --- Handles a hard crash gracefully and abort the call.
 ---@param call bwf.Call
 function App:_panic(call, err)
-  call.logger:fatal(
-    'A panic occurred while trying to handle request: %s\n%s\n',
-    err,
-    debug.traceback()
-  )
+  call.logger:fatal('A panic occurred while trying to handle request: %s\n%s\n', err, debug.traceback())
   if call.state.sent then
     return
   end
@@ -368,12 +364,7 @@ function App:start()
   end
 
   local address = self:getAddress() or self.interface
-  self.logger:info(
-    'Server listening on %s://%s:%d',
-    self.interface.tls and 'https' or 'http',
-    address.ip,
-    address.port
-  )
+  self.logger:info('Server listening on %s://%s:%d', self.interface.tls and 'https' or 'http', address.ip, address.port)
   return true
 end
 
