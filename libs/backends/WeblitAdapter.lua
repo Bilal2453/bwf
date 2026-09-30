@@ -108,21 +108,6 @@ function WeblitAdapter:flush(call)
   return true
 end
 
-local function close(socket, graceful)
-  if socket:is_closing() then
-    return true
-  end
-  if graceful then
-    return socket:close()
-  else
-    if socket.close_reset then
-      return socket:close_reset()
-    else
-      return socket:close()
-    end
-  end
-end
-
 ---@param call bwf.Call
 ---@param graceful boolean? # default: `false`.
 ---@return boolean? success, string? error_message
@@ -131,8 +116,14 @@ function WeblitAdapter:abort(call, graceful)
   if not success then
     return nil, err
   end
-  local req = call.state._backend.req --[[@as weblit.req]]
-  local success, err = close(req.socket, graceful)
+  local res = call.state._backend.res --[[@as weblit.res]]
+  if graceful then
+    -- we can't use :close here because that would prematurely abort when there's still data to flush
+    res.keepAlive = false
+  else
+    res.body, res.keepAlive = nil, false
+    success, err = helpers.resetSocket(call.state._backend.req.socket)
+  end
   if not success then
     return nil, err
   end

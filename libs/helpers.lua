@@ -38,4 +38,22 @@ function helpers.getUpvalue(fn, name)
   return value
 end
 
+function helpers.closeSocket(socket)
+  if socket:is_closing() then
+    return true
+  end
+  return socket:close()
+end
+
+function helpers.resetSocket(socket)
+  if socket:is_closing() then
+    return true
+  end
+  if socket.close_reset then
+    return socket:close_reset()
+  else
+    return socket:close()
+  end
+end
+
 return helpers
