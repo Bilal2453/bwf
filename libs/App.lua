@@ -219,7 +219,7 @@ function App:_error(problem, call, endpoint, routes)
     self.logger:error(
       'Internal server error while handling "%s %s": %s',
       call.req.method,
-      call.req.path.raw,
+      call.req.path.pathname,
       problem.detail or 'unknown error'
     )
     problem = {
