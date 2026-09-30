@@ -107,6 +107,8 @@ Logger._resolvers = {
   end,
 }
 
+Logger.colorize = formats.colorize
+
 ---@param options bwf.Logger.options?
 ---@return bwf.Logger.options
 function Logger:_resolveOptions(options)

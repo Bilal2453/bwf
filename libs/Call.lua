@@ -13,6 +13,7 @@ local uri = require('uri')
 ---@field body { type: string, data: any } | table
 ---@field state { sent: boolean, matched: boolean, aborted: boolean, errored: false | bwf.Call.problem, _backend: table } | table
 ---@field storage table # A plain Lua table used to store various data related to the Call, useful for interceptors.
+---@field logger bwf.Logger
 ---@field protected _compiled_path bwf.App.compiled_path?
 ---@field protected _parameters {[string]: string?}?
 local Call = core.Object:extend()
@@ -35,6 +36,11 @@ function Call:initialize(app, adapter, backend_state)
   self.storage = {} -- TODO: maybe add more restrictions or abstractions?
 
   self.req = CallReq:new(self, adapter)
+  self.logger = app.logger:child({
+    ip = self.req.address.ip,
+    method = self.req.method,
+    path = self.req.path.pathname,
+  })
 
   self._compiled_path = nil
   self._parameters = nil
@@ -363,6 +369,7 @@ function Call:abort(send_body)
     self.state.sent = true
   end
   self.adapter:abort(self, send_body and true)
+  self.logger:warn('Connection aborted %s', send_body and 'gracefully' or 'forcibly')
   return self
 end
 

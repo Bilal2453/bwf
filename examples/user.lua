@@ -1,8 +1,14 @@
 local module = require('../init')
 
+local logger = module.Logger:new({
+  color_mode = 16,
+  level = 1,
+}):addStream(io.stdout)
+
 local app = module.App:new({
   host = '127.0.0.1',
   port = 8080,
+  logger = logger,
 })
 
 local scope_logger = app.logger:child({ scope = 'user' })
@@ -67,8 +73,16 @@ app:post('/users', {
   call:json(new_user, 201)
 end)
 
+app:get('/secret', function(call)
+  call:problem({
+    status = 403,
+    detail = 'Authentication is required'
+  })
+  call:abort(true)
+end)
+
 app:get('/stop', function(call)
   assert(app:stop())
 end)
 
-assert(app:run())
+app:run()

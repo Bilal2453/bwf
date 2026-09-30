@@ -153,6 +153,7 @@ function App:_handleDecoding(call, operation)
     success, result = pcall(decoder.decode, call.req:readBody(), call)
   end
   if not success or not result then
+    call.logger:warn('Failed to decode body as "%s": %s', mimetype_content, result)
     call:problem('Malformed request payload', 400)
     return false
   end
@@ -168,13 +169,16 @@ end
 ---@return boolean continue # Whether the caller should abort or not
 ---@nodiscard
 function App:_handleHooks(hooks, call, endpoint, routes)
-  for _, v in ipairs(hooks) do
-    local success, err = v:eval(call)
+  for _, hook in ipairs(hooks) do
+    call.logger:trace('Evaluating hook "%s"', hook.id)
+    local success, err = hook:eval(call)
     if not success then
+      call.logger:error('Hook "%s" threw an error: %s', hook.id, err)
       self:_error({ status = 500, detail = err }, call, endpoint, routes)
       return false
     end
     if call.state.sent or call.state.aborted then
+      call.logger:debug('Aborted the hook pipeline for "%s": Call was either sent or aborted', hook.id)
       return false
     end
   end
@@ -187,9 +191,11 @@ end
 ---@return boolean
 ---@nodiscard
 function App:_handleErrorHooks(hooks, call)
-  for _, v in ipairs(hooks) do
-    local success, err = v:eval(call)
+  for _, hook in ipairs(hooks) do
+    call.logger:trace('Evaluating error hook "%s"', hook.id)
+    local success, err = hook:eval(call)
     if not success then
+      call.logger:error('Error hook "%s" failed: %s', hook.id, err)
       self:_panic(call, err)
       return false
     end
@@ -216,12 +222,7 @@ function App:_error(problem, call, endpoint, routes)
 
   -- sanitize the 5xx errors to prevent error leaks
   if problem.status >= 500 then
-    self.logger:error(
-      'Internal server error while handling "%s %s": %s',
-      call.req.method,
-      call.req.path.pathname,
-      problem.detail or 'unknown error'
-    )
+    call.logger:error('Internal server error: %s', problem.detail or 'unknown error')
     problem = {
       status = problem.status or 500,
     }
@@ -257,9 +258,8 @@ end
 --- Handles a hard crash gracefully and abort the call.
 ---@param call bwf.Call
 function App:_panic(call, err)
-  self.logger:fatal(
-    'A panic occurred while trying to handle "%s": %s\n%s\n',
-    call.req.path.pathname,
+  call.logger:fatal(
+    'A panic occurred while trying to handle request: %s\n%s\n',
     err,
     debug.traceback()
   )
@@ -294,6 +294,7 @@ function App:_handleCall(call)
   if not path then
     return self:_error({ status = 404, detail = 'Requested path was not found' }, call)
   end
+  call.logger:trace('Matched route pattern "%s"', path.pattern)
   local routes = path.routes
   local endpoint = path.endpoint
   -- tell the call about this route's params
@@ -357,12 +358,20 @@ function App:start()
     self:_handleCall(call)
   end)
 
-  local success, err = pcall(self._backend.start, self._backend)
-  if not success then
+  local pcall_success, success, err = pcall(self._backend.start, self._backend)
+  if not pcall_success or not success then
+    local err_msg = success or err
     self.state.is_running = false
-    self:emit('server_aborted', err)
-    return nil, err
+    self.logger:fatal('Failed to listen on (%s:%d): %s', self.interface.host, self.interface.port, err_msg)
+    self:emit('server_aborted', err_msg)
+    return nil, err_msg
   end
+  self.logger:info(
+    'Server listening on %s://%s:%d',
+    self.interface.tls and 'https' or 'http',
+    self.interface.host,
+    self.interface.port
+  )
   return true
 end
 
@@ -392,6 +401,7 @@ function App:stop()
     return nil, err
   end
   self.state.is_running = false
+  self.logger:info('Server has been stopped')
   self:emit('server_stopped')
   return true
 end
@@ -508,6 +518,7 @@ function App:registerEndpoint(path, endpoint)
 end
 
 function App:compile()
+  local static_n, dynamic_n = 0, 0
   for routes in pairs(self.routes) do
     for _, endpoint_struct in ipairs(routes.endpoints) do
       -- TODO: make sure full_path is path only and contains no query/hash portions
@@ -517,11 +528,14 @@ function App:compile()
       temp.endpoint = endpoint_struct.endpoint
       if temp.is_static then
         self.static_paths[temp.path] = temp
+        static_n = static_n + 1
       else
         table.insert(self.compiled_paths, temp)
+        dynamic_n = dynamic_n + 1
       end
     end
   end
+  self.logger:debug('Compiled %d routes (%d static, %d dynamic)', static_n + dynamic_n, static_n, dynamic_n)
 end
 
 ---@param hook bwd.Hook.resolvable
