@@ -126,7 +126,7 @@ end
 --- Set a response header. The name is case-insensitive. If the value is an array the header will be set multiple times for each value.
 --- If the value is `nil` the header will be removed, similar to calling `Call:removeHeader(name)`.
 ---@param name string
----@param value string | string[]
+---@param value string | string[] | nil
 ---@return self
 function Call:setHeader(name, value)
   name = string.lower(name)

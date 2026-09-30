@@ -367,7 +367,7 @@ function App:start()
     return nil, err_msg
   end
 
-  local address = self:getAddress()
+  local address = self:getAddress() or self.interface
   self.logger:info(
     'Server listening on %s://%s:%d',
     self.interface.tls and 'https' or 'http',
