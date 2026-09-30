@@ -310,6 +310,7 @@ function Call:problem(problem, status)
   data.instance = data.instance or self.req.path.pathname
   -- set response
   self:_setStatus(status)
+  self:setHeader('Content-Type', 'application/problem+json')
   self.body = { type = 'problem', data = data }
   return self
 end
