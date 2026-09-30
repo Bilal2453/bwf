@@ -85,11 +85,17 @@ end
 function Adapter:getVersion(call)
   error('NYI')
 end
---- The remote IP address as resolved by the backend. This is the raw remote socket IP, not necessarily the same as the real remote IP.
+--- The remote IP address as resolved by the backend for the given Call. This is the raw remote socket IP, not necessarily the same as the real remote IP.
 ---@param call bwf.Call
----@return { ip: string, port: integer, family: string }
+---@return { ip: string, port: integer, family: uv.aliases.network_family }?
 ---@nodiscard
 function Adapter:getRemoteAddress(call)
+  error('NYI')
+end
+--- The server socket IP address as resolved by the. This is the raw server socket IP, and not the external IP of the interface.
+---@return { ip: string, port: integer, family: uv.aliases.network_family }?
+---@nodiscard
+function Adapter:getServerAddress()
   error('NYI')
 end
 --- The request headers as a map of the header name to the value, if the header is provided multiple times

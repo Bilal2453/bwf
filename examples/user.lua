@@ -7,7 +7,7 @@ local logger = module.Logger:new({
 
 local app = module.App:new({
   host = '127.0.0.1',
-  port = 8080,
+  port = 0,
   logger = logger,
 })
 

@@ -156,10 +156,19 @@ function WeblitAdapter:getVersion(call)
 end
 --- The remote IP address as resolved by the backend. This is the raw remote socket IP, not necessarily the same as the real remote IP.
 ---@param call bwf.Call
----@return { ip: string, port: integer, family: string }
+---@return uv.aliases.getpeername_rtn? address, string? err_name, string? err_msg
 ---@nodiscard
 function WeblitAdapter:getRemoteAddress(call)
   return call.state._backend.req.socket:getpeername()
+end
+--- The server socket IP address as resolved by the. This is the raw server socket IP, and not the external IP of the interface.
+---@return uv.aliases.getsockname_rtn? address, string? err_name, string? err_msg
+---@nodiscard
+function WeblitAdapter:getServerAddress()
+  if not self.server then
+    error('The app is not bound to any interface yet')
+  end
+  return self.server:getsockname()
 end
 --- The request headers as a map of the header name to the value, if the header is provided multiple times
 --- the value must be an array of the provided values. The header name is always lower-case. All values must be strings.

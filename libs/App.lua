@@ -366,11 +366,13 @@ function App:start()
     self:emit('server_aborted', err_msg)
     return nil, err_msg
   end
+
+  local address = self:getAddress()
   self.logger:info(
     'Server listening on %s://%s:%d',
     self.interface.tls and 'https' or 'http',
-    self.interface.host,
-    self.interface.port
+    address.ip,
+    address.port
   )
   return true
 end
@@ -538,6 +540,36 @@ function App:compile()
   self.logger:debug('Compiled %d routes (%d static, %d dynamic)', static_n + dynamic_n, static_n, dynamic_n)
 end
 
+local _match_buf = { n = 0 }
+--- Searches currently registered routes for the path of `call.path`.
+---@param call bwf.Call
+---@return bwf.App.compiled_path?, string[]?
+---@nodiscard
+function App:matchPath(call)
+  local path = template.normalize(call.req.path.pathname)
+  if self.static_paths[path] then
+    return self.static_paths[path]
+  end
+  for _, v in ipairs(self.compiled_paths) do
+    -- using fill to avoid allocating useless empty tables
+    local matches = helpers.fill(_match_buf, string.match(path, v.pattern))
+    if matches[1] then
+      return v, matches
+    end
+  end
+end
+
+--- Returns the interface information the app is currently bound to.
+---@return uv.aliases.getsockname_rtn? address, string? err_msg
+---@nodiscard
+function App:getAddress()
+  local address, _, err = self._backend:getServerAddress()
+  if not address then
+    return nil, err
+  end
+  return address
+end
+
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function App:hookRequest(hook)
@@ -564,25 +596,6 @@ end
 
 function App:generateOpenAPI()
   -- TODO
-end
-
-local _match_buf = { n = 0 }
---- Searches currently registered routes for the path of `call.path`.
----@param call bwf.Call
----@return bwf.App.compiled_path?, string[]?
----@nodiscard
-function App:matchPath(call)
-  local path = template.normalize(call.req.path.pathname)
-  if self.static_paths[path] then
-    return self.static_paths[path]
-  end
-  for _, v in ipairs(self.compiled_paths) do
-    -- using fill to avoid allocating useless empty tables
-    local matches = helpers.fill(_match_buf, string.match(path, v.pattern))
-    if matches[1] then
-      return v, matches
-    end
-  end
 end
 
 --- Registers a new Endpoint using the `App.main_route`.
