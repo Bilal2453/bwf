@@ -7,11 +7,11 @@ Central task tracker for the planned release road stages.
 ## Milestone 1: Core Engine & Hook Pipeline
 
 - [ ] **Strict Hook System Upgrades**
-  - [ ] **1. Scope collision:** Fail-fast at registration if a duplicate hook ID is registered in the same phase on the same scope (`App`, `Routes`, or `Endpoint`).
+  - [x] **1. Scope collision:** Fail-fast at registration if a duplicate hook ID is registered in the same phase on the same scope (`App`, `Routes`, or `Endpoint`).
   - [ ] **2. Tree shadowing:** Prohibit child scopes (`Routes`/`Endpoint`) from silently shadowing ancestor hook IDs in the same phase.
   - [ ] **3. Explicit override API:** Implement `scope:overrideHook(phase, hook)` to intentionally replace an ancestor hook for a subtree or endpoint.
   - [ ] **4. Explicit opt-out API:** Implement `scope:disableHook(phase, hook_id)` to exempt specific endpoints/routes from inherited hooks.
-  - [ ] **5. ID format & namespacing:** Validate hook ID strings (`group:name`) and reserve `bwf:` prefix for core framework hooks.
+  - [x] **5. ID format & namespacing:** Validate hook ID strings (flexible identifier syntax, reserve `bwf:` prefix for core framework hooks) and optional `capability` categorization.
   - [ ] **6. Pre-compiled hook chains:** Flatten and validate active hooks per endpoint during route compilation (`App:compilePaths`), eliminating runtime traversal lookups.
   - [x] **7. Hook observability:** Attribute execution metrics and pipeline errors with the active hook ID in logs and error details.
 - [x] **Server Lifecycle & Control Flow**

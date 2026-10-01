@@ -52,12 +52,6 @@
 ---@field endpoint bwf.Endpoint
 ---@field options bwf.Endpoint.options
 
----@class bwf.Hook.struct: table
----@field id string
----@field call fun(call: bwf.Call)
-
----@alias bwd.Hook.resolvable bwf.Hook | bwf.Hook.struct
-
 ---@alias bwf.alias.routes_options {prefix?: string, parameters?: bwf.Parameter[], responses?: bwf.Response[], tags?: string[], docs?: bwf.Doc[], security?: table, callbacks?: table, servers?: table}
 
 ---@alias bwf.alias.endpoint_callback fun(call: bwf.Call)

@@ -62,7 +62,7 @@ end
 ---@field interface { host: string, port: integer, tls: boolean? }
 ---@field logger bwf.Logger
 ---@field state { is_running: boolean, is_compiled: boolean }
----@field hooks { request: table, response: table, error: table }
+---@field hooks bwf.Hook.scope
 ---@field main_route bwf.Routes
 ---@field routes { [bwf.Routes]: true }
 ---@field static_paths { [string]: bwf.App.compiled_path }
@@ -81,11 +81,7 @@ function App:initialize(options)
     is_running = false,
     is_compiled = false,
   }
-  self.hooks = {
-    request = {},
-    response = {},
-    error = {},
-  }
+  self.hooks = Hook._create_scope()
   self.main_route = Routes:new()
   self.routes = {
     [self.main_route] = true,
@@ -564,24 +560,21 @@ end
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function App:hookRequest(hook)
-  hook = Hook.resolve(hook)
-  table.insert(self.hooks.request, hook)
+  Hook._register_hook(self.hooks, 'request', hook)
   return self
 end
 
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function App:hookResponse(hook)
-  hook = Hook.resolve(hook)
-  table.insert(self.hooks.response, hook)
+  Hook._register_hook(self.hooks, 'response', hook)
   return self
 end
 
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function App:hookError(hook)
-  hook = Hook.resolve(hook)
-  table.insert(self.hooks.error, hook)
+  Hook._register_hook(self.hooks, 'error', hook)
   return self
 end
 

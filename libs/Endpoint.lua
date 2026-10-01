@@ -10,6 +10,7 @@ end
 
 ---@class bwf.Endpoint: luvit.core.Object
 ---@field new fun(self: self, options: bwf.alias.endpoint_options?): bwf.Endpoint
+---@field hooks bwf.Hook.scope
 ---@field summary string
 ---@field description string
 ---@field operations {[bwf.alias.http_method]: bwf.alias.operation_struct}
@@ -19,11 +20,7 @@ end
 local Endpoint = core.Object:extend()
 
 function Endpoint:initialize(options)
-  self.hooks = {
-    request = {},
-    response = {},
-    error = {},
-  }
+  self.hooks = Hook._create_scope()
   options = options or {}
   self.summary = options.summary or ''
   self.description = options.description or ''
@@ -142,8 +139,7 @@ end
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Endpoint:hookRequest(hook)
-  hook = Hook.resolve(hook)
-  table.insert(self.hooks.request, hook)
+  Hook._register_hook(self.hooks, 'request', hook)
   return self
 end
 --- ds a response hook scoped only to this Endpoint.
@@ -151,16 +147,14 @@ end
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Endpoint:hookResponse(hook)
-  hook = Hook.resolve(hook)
-  table.insert(self.hooks.response, hook)
+  Hook._register_hook(self.hooks, 'response', hook)
   return self
 end
 --- Appends an error hook scoped only to this Endpoint.
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Endpoint:hookError(hook)
-  hook = Hook.resolve(hook)
-  table.insert(self.hooks.error, hook)
+  Hook._register_hook(self.hooks, 'error', hook)
   return self
 end
 

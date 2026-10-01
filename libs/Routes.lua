@@ -11,6 +11,7 @@ local template = require('uri-template')
 ---   - Security, tags, servers, callbacks and docs are replaced entirely by their Endpoint counterparts.
 ---@class bwf.Routes: luvit.core.Object
 ---@field new fun(self: self, options: bwf.Routes.options?): bwf.Routes
+---@field hooks bwf.Hook.scope
 ---@field endpoints bwf.Endpoint.struct[].
 ---@field registered_paths {[string]: bwf.Endpoint.struct}
 ---@field prefix string
@@ -29,11 +30,7 @@ function Routes:initialize(options)
   self.registered_paths = {}
   self.prefix = options.prefix or ''
 
-  self.hooks = {
-    request = {},
-    response = {},
-    error = {},
-  }
+  self.hooks = Hook._create_scope()
 
   self.responses = options.responses or {}
   self.parameters = self.parameters or {}
@@ -250,8 +247,7 @@ end
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Routes:hookRequest(hook)
-  hook = Hook.resolve(hook)
-  table.insert(self.hooks.request, hook)
+  Hook._register_hook(self.hooks, 'request', hook)
   return self
 end
 ---Appends a response hook scoped only to this Routes.
@@ -259,16 +255,14 @@ end
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Routes:hookResponse(hook)
-  hook = Hook.resolve(hook)
-  table.insert(self.hooks.response, hook)
+  Hook._register_hook(self.hooks, 'response', hook)
   return self
 end
 ---Appends an error hook scoped only to this Routes.
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Routes:hookError(hook)
-  hook = Hook.resolve(hook)
-  table.insert(self.hooks.error, hook)
+  Hook._register_hook(self.hooks, 'error', hook)
   return self
 end
 
