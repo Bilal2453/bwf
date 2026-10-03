@@ -10,8 +10,6 @@ local helpers = require('helpers')
 local template = require('uri-template')
 local termcolor = require('termcolor')
 
--- TODO: update's App.port after :listen if it initially is 0 (random)
-
 ---@class bwf.App.compiled_path: bwf.uri-template
 ---@field routes bwf.Routes
 ---@field endpoint bwf.Endpoint
@@ -277,10 +275,11 @@ function App:_handleCall(call)
     return
   end
 
-  -- run the app-scope request hooks
-  if not self:_handleHooks(self.hooks.request, call) then
+  -- run prerouting global hooks
+  if not self:_handleHooks(self.hooks.preroute, call) then
     return
   end
+
   -- find the Routes responsible for handling this call
   local path, matches = self:matchPath(call)
   if not path then
@@ -292,7 +291,10 @@ function App:_handleCall(call)
   -- tell the call about this route's params
   call:_setParams(path, matches)
 
-  -- run the remaining request hooks: routes -> endpoint
+  -- run the request hooks: app -> routes -> endpoint
+  if not self:_handleHooks(self.hooks.request, call, endpoint, routes) then
+    return
+  end
   if not self:_handleHooks(routes.hooks.request, call, endpoint, routes) then
     return
   end
@@ -555,6 +557,13 @@ function App:getAddress()
     return nil, err
   end
   return address
+end
+
+---@param hook bwd.Hook.resolvable
+---@return self
+function App:hookPreRoute(hook)
+  Hook._register_hook(self.hooks, 'preroute', hook)
+  return self
 end
 
 ---@param hook bwd.Hook.resolvable

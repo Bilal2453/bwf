@@ -106,7 +106,7 @@ function Call:_setParams(compiled_path, matches)
 end
 
 --- Retrieve a named path parameter.
---- If this is executed before the routing phase (e.x. app-scope request hooks) there will be no parameters to return,
+--- If this is executed before the routing phase (e.x. preroute hooks) there will be no parameters to return,
 --- therefore this method will raise an error, instead of just returning an ambiguous `nil` value.
 ---@param name string
 ---@param default_value any?

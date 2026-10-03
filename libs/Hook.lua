@@ -1,6 +1,7 @@
 local core = require('core')
 
 ---@class bwf.Hook.scope
+---@field preroute bwf.Hook[]
 ---@field request bwf.Hook[]
 ---@field response bwf.Hook[]
 ---@field error bwf.Hook[]
@@ -12,6 +13,7 @@ local core = require('core')
 
 ---@alias bwd.Hook.resolvable bwf.Hook | bwf.Hook.struct
 
+---@alias bwf.Hook.phase 'preroute' | 'request' | 'response' | 'error'
 
 ---@class bwf.Hook: luvit.core.Object
 ---@field new fun(self: self, hook: bwf.Hook.struct): bwf.Hook
@@ -84,6 +86,7 @@ end
 ---@return bwf.Hook.scope
 function Hook._create_scope()
   return {
+    preroute = { _ids = {}, _caps = {} },
     request = { _ids = {}, _caps = {} },
     response = { _ids = {}, _caps = {} },
     error = { _ids = {}, _caps = {} },
@@ -91,7 +94,7 @@ function Hook._create_scope()
 end
 
 ---@param scope bwf.Hook.scope
----@param phase 'request' | 'response' | 'error'
+---@param phase bwf.Hook.phase
 ---@param hook bwd.Hook.resolvable
 ---@param is_internal boolean?
 function Hook._register_hook(scope, phase, hook, is_internal)

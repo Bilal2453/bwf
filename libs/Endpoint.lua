@@ -134,16 +134,16 @@ function Endpoint:query(operation, callback)
   return self:define('query', operation, callback)
 end
 
---- pends a request hook scoped only to this Routes.
---- ns after App-level and Route-level request hooks.
+--- Appends a request hook scoped only to this Endpoint.
+--- Runs after App-level and Route-level request hooks.
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Endpoint:hookRequest(hook)
   Hook._register_hook(self.hooks, 'request', hook)
   return self
 end
---- ds a response hook scoped only to this Endpoint.
---- before Route-level and App-level response hooks.
+--- Run a response hook scoped only to this Endpoint.
+--- Runs before Route-level and App-level response hooks.
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Endpoint:hookResponse(hook)

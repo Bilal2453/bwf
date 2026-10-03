@@ -242,15 +242,15 @@ function Routes:query(path, operation, callback)
   return self:define('query', path, operation, callback)
 end
 
----Appends a request hook scoped only to this Routes.
----Runs after App-level and Route-level request hooks.
+--- Appends a request hook scoped only to this Routes.
+--- Runs after App-level and Route-level request hooks.
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Routes:hookRequest(hook)
   Hook._register_hook(self.hooks, 'request', hook)
   return self
 end
----Appends a response hook scoped only to this Routes.
+--- Appends a response hook scoped only to this Routes.
 ---Runs before Route-level and App-level response hooks.
 ---@param hook bwd.Hook.resolvable
 ---@return self
@@ -258,7 +258,7 @@ function Routes:hookResponse(hook)
   Hook._register_hook(self.hooks, 'response', hook)
   return self
 end
----Appends an error hook scoped only to this Routes.
+--- Appends an error hook scoped only to this Routes.
 ---@param hook bwd.Hook.resolvable
 ---@return self
 function Routes:hookError(hook)

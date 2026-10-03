@@ -6,14 +6,13 @@ Central task tracker for the planned release road stages.
 
 ## Milestone 1: Core Engine & Hook Pipeline
 
-- [ ] **Strict Hook System Upgrades**
-  - [x] **1. Scope collision:** Fail-fast at registration if a duplicate hook ID is registered in the same phase on the same scope (`App`, `Routes`, or `Endpoint`).
-  - [ ] **2. Tree shadowing:** Prohibit child scopes (`Routes`/`Endpoint`) from silently shadowing ancestor hook IDs in the same phase.
-  - [ ] **3. Explicit override API:** Implement `scope:overrideHook(phase, hook)` to intentionally replace an ancestor hook for a subtree or endpoint.
-  - [ ] **4. Explicit opt-out API:** Implement `scope:disableHook(phase, hook_id)` to exempt specific endpoints/routes from inherited hooks.
-  - [x] **5. ID format & namespacing:** Validate hook ID strings (flexible identifier syntax, reserve `bwf:` prefix for core framework hooks) and optional `capability` categorization.
-  - [ ] **6. Pre-compiled hook chains:** Flatten and validate active hooks per endpoint during route compilation (`App:compilePaths`), eliminating runtime traversal lookups.
-  - [x] **7. Hook observability:** Attribute execution metrics and pipeline errors with the active hook ID in logs and error details.
+- [ ] **Declarative Hook System & Compilation**
+  - [x] **1. Scope collision:** Fail-fast at registration if a duplicate hook ID or conflicting capability is registered in the same phase on the same scope (`App`, `Routes`, or `Endpoint`).
+  - [ ] **2. Declarative cascading override:** Child scopes (`Routes`/`Endpoint`) declaring a hook with the same ID or capability automatically replace the ancestor hook for that branch (following BWF's existing parameter/response precedence model).
+  - [ ] **3. Hook deduplication:** Automatically deduplicate and execute once if the exact same hook instance is encountered across ancestors.
+  - [x] **4. ID format & namespacing:** Validate hook ID strings (flexible identifier syntax, reserve `bwf:` prefix for core framework hooks) and optional `capability` categorization.
+  - [ ] **5. Pre-compiled hook chains:** Flatten, resolve cascading overrides, and pre-compile active hooks into a single array per endpoint during `App:compilePaths()`, eliminating runtime traversal lookups.
+  - [x] **6. Hook observability:** Attribute execution metrics and pipeline errors with the active hook ID in logs and error details.
 - [x] **Server Lifecycle & Control Flow**
   - [x] Implement `App.run()` that yields execution (via coroutine) until the server is stopped, keeping `App:start()` explicitly asynchronous/non-blocking.
   - [x] Update `App.port` / `App:getAddress()` after `:listen` when assigned port `0` (ephemeral/random port).
