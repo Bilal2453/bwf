@@ -5,6 +5,7 @@ local app = module.App:new({
   host = '127.0.0.1',
   port = 8080,
 })
+
 app:hookRequest({
   id = 'ding',
   call = function(call)
@@ -12,10 +13,25 @@ app:hookRequest({
   end,
 })
 
+app:hookRequest({
+  id = 'ping',
+  call = function(call)
+    call:setHeader('x-ping', '1')
+  end,
+})
+
 -- define the endpoint
 local ping_endpoint = module.Endpoint:new({
   description = 'A ping endpoint that pongs back.',
   summary = 'Ping-pong',
+})
+
+ping_endpoint:hookRequest({
+  id = 'ping',
+  call = function(call)
+    call:setHeader('x-ping', '0')
+  end,
+  override = true,
 })
 
 ping_endpoint:get(function(call)

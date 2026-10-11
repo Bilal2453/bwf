@@ -13,6 +13,7 @@ local termcolor = require('termcolor')
 ---@class bwf.App.compiled_path: bwf.uri-template
 ---@field routes bwf.Routes
 ---@field endpoint bwf.Endpoint
+---@field hooks bwf.Hook.scope
 
 ---@class bwf.App.options: table
 ---@field host string
@@ -158,17 +159,16 @@ end
 --- Iterate and execute the hooks, and handle any errors or state changes.
 ---@param hooks bwf.Hook[]
 ---@param call bwf.Call
----@param endpoint bwf.Endpoint?
----@param routes bwf.Routes?
+---@param error_hooks bwf.Hook[]
 ---@return boolean continue # Whether the caller should abort or not
 ---@nodiscard
-function App:_handleHooks(hooks, call, endpoint, routes)
+function App:_handleHooks(hooks, call, error_hooks)
   for _, hook in ipairs(hooks) do
     call.logger:trace('Evaluating hook "%s"', hook.id)
     local success, err = hook:eval(call)
     if not success then
       call.logger:error('Hook "%s" threw an error: %s', hook.id, err)
-      self:_error({ status = 500, detail = err }, call, endpoint, routes)
+      self:_error({ status = 500, detail = err }, call, error_hooks)
       return false
     end
     if call.state.sent or call.state.aborted then
@@ -204,9 +204,8 @@ end
 --- Problem detail is used as a response to the user agent.
 ---@param problem bwf.Call.problem
 ---@param call bwf.Call
----@param endpoint bwf.Endpoint?
----@param routes bwf.Routes?
-function App:_error(problem, call, endpoint, routes)
+---@param error_hooks bwf.Hook[]
+function App:_error(problem, call, error_hooks)
   -- sanity check: make sure the connection is valid
   if call.state.sent or call.state.aborted then
     return
@@ -223,20 +222,8 @@ function App:_error(problem, call, endpoint, routes)
   end
   call:problem(problem)
 
-  -- run endpoint error hooks
-  if endpoint then
-    if not self:_handleErrorHooks(endpoint.hooks.error, call) then
-      return
-    end
-  end
-  -- run routes error hooks
-  if routes then
-    if not self:_handleErrorHooks(routes.hooks.error, call) then
-      return
-    end
-  end
-  -- run app error hooks
-  if not self:_handleErrorHooks(self.hooks.error, call) then
+  -- run error hooks
+  if not self:_handleErrorHooks(error_hooks, call) then
     return
   end
 
@@ -275,15 +262,15 @@ function App:_handleCall(call)
     return
   end
 
-  -- run prerouting global hooks
-  if not self:_handleHooks(self.hooks.preroute, call) then
+  -- run pre-routing global hooks
+  if not self:_handleHooks(self.hooks.preroute, call, self.hooks.error) then
     return
   end
 
   -- find the Routes responsible for handling this call
   local path, matches = self:matchPath(call)
   if not path then
-    return self:_error({ status = 404, detail = 'Requested path was not found' }, call)
+    return self:_error({ status = 404, detail = 'Requested path was not found' }, call, self.hooks.error)
   end
   call.logger:trace('Matched route pattern "%s"', path.pattern)
   local routes = path.routes
@@ -292,20 +279,14 @@ function App:_handleCall(call)
   call:_setParams(path, matches)
 
   -- run the request hooks: app -> routes -> endpoint
-  if not self:_handleHooks(self.hooks.request, call, endpoint, routes) then
-    return
-  end
-  if not self:_handleHooks(routes.hooks.request, call, endpoint, routes) then
-    return
-  end
-  if not self:_handleHooks(endpoint.hooks.request, call, endpoint, routes) then
+  if not self:_handleHooks(path.hooks.request, call, path.hooks.error) then
     return
   end
 
   -- find the operation handler
   local operation_struct = endpoint:findOperation(call)
   if not operation_struct then
-    return self:_error({ status = 405, detail = 'Unsupported HTTP method for this path' }, call, endpoint, routes)
+    return self:_error({ status = 405, detail = 'Unsupported HTTP method for this path' }, call, path.hooks.error)
   end
 
   -- handle request body decoding if configured on the operation
@@ -315,25 +296,19 @@ function App:_handleCall(call)
     -- execute the operation handler
     local success, err = xpcall(operation_struct.callback, debug.traceback, call)
     if not success then
-      return self:_error({ status = 500, detail = err }, call, endpoint, routes)
+      return self:_error({ status = 500, detail = err }, call, path.hooks.error)
     end
   end
 
   -- run response hooks: endpoint -> routes -> app
-  if not self:_handleHooks(endpoint.hooks.response, call, endpoint, routes) then
-    return
-  end
-  if not self:_handleHooks(routes.hooks.response, call, endpoint, routes) then
-    return
-  end
-  if not self:_handleHooks(self.hooks.response, call, endpoint, routes) then
+  if not self:_handleHooks(path.hooks.response, call, path.hooks.error) then
     return
   end
 
   -- send the response
   local success, err = self._backend:flush(call)
   if not success then
-    return self:_error({ status = 500, detail = err }, call, endpoint, routes)
+    return self:_error({ status = 500, detail = err }, call, path.hooks.error)
   end
   call.state.sent = true
   self.logger:http(call)
@@ -509,14 +484,27 @@ function App:registerEndpoint(path, endpoint)
 end
 
 function App:compile()
+  -- compile routes paths into hash maps/Lua patterns
   local static_n, dynamic_n = 0, 0
   for routes in pairs(self.routes) do
     for _, endpoint_struct in ipairs(routes.endpoints) do
+
       -- TODO: make sure full_path is path only and contains no query/hash portions
+      -- create a template
       local full_path = template.join(routes.prefix, endpoint_struct.path)
       local temp = template.parseTemplate(full_path) --[[@as bwf.App.compiled_path]]
       temp.routes = routes
       temp.endpoint = endpoint_struct.endpoint
+
+      -- pre-compute possible hooks for each endpoint
+      temp.hooks = {
+        preroute = {},
+        response = Hook._compile_scopes('response', { endpoint_struct.endpoint.hooks, routes.hooks, self.hooks }),
+        request = Hook._compile_scopes('request', { self.hooks, routes.hooks, endpoint_struct.endpoint.hooks }),
+        error = Hook._compile_scopes('error', { endpoint_struct.endpoint.hooks, routes.hooks, self.hooks }),
+      }
+
+      -- register the template as compiled
       if temp.is_static then
         self.static_paths[temp.path] = temp
         static_n = static_n + 1
@@ -524,6 +512,7 @@ function App:compile()
         table.insert(self.compiled_paths, temp)
         dynamic_n = dynamic_n + 1
       end
+
     end
   end
   self.logger:debug('Compiled %d routes (%d static, %d dynamic)', static_n + dynamic_n, static_n, dynamic_n)

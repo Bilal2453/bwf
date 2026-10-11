@@ -147,7 +147,8 @@ end
 ---@return string|string[]|nil
 ---@nodiscard
 function Call:getHeader(name, default_value)
-  return self.headers[name] or default_value
+  name = name and string.lower(name) or default_value
+  return self.headers[name]
 end
 
 --- Returns whether a header is set or not in the response.
