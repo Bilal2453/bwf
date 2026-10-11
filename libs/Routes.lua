@@ -244,7 +244,7 @@ end
 
 --- Appends a request hook scoped only to this Routes.
 --- Runs after App-level and Route-level request hooks.
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function Routes:hookRequest(hook)
   Hook._register_hook(self.hooks, 'request', hook)
@@ -252,14 +252,14 @@ function Routes:hookRequest(hook)
 end
 --- Appends a response hook scoped only to this Routes.
 ---Runs before Route-level and App-level response hooks.
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function Routes:hookResponse(hook)
   Hook._register_hook(self.hooks, 'response', hook)
   return self
 end
 --- Appends an error hook scoped only to this Routes.
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function Routes:hookError(hook)
   Hook._register_hook(self.hooks, 'error', hook)

@@ -136,7 +136,7 @@ end
 
 --- Appends a request hook scoped only to this Endpoint.
 --- Runs after App-level and Route-level request hooks.
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function Endpoint:hookRequest(hook)
   Hook._register_hook(self.hooks, 'request', hook)
@@ -144,14 +144,14 @@ function Endpoint:hookRequest(hook)
 end
 --- Run a response hook scoped only to this Endpoint.
 --- Runs before Route-level and App-level response hooks.
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function Endpoint:hookResponse(hook)
   Hook._register_hook(self.hooks, 'response', hook)
   return self
 end
 --- Appends an error hook scoped only to this Endpoint.
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function Endpoint:hookError(hook)
   Hook._register_hook(self.hooks, 'error', hook)

@@ -548,28 +548,28 @@ function App:getAddress()
   return address
 end
 
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function App:hookPreRoute(hook)
   Hook._register_hook(self.hooks, 'preroute', hook)
   return self
 end
 
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function App:hookRequest(hook)
   Hook._register_hook(self.hooks, 'request', hook)
   return self
 end
 
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function App:hookResponse(hook)
   Hook._register_hook(self.hooks, 'response', hook)
   return self
 end
 
----@param hook bwd.Hook.resolvable
+---@param hook bwf.Hook.resolvable
 ---@return self
 function App:hookError(hook)
   Hook._register_hook(self.hooks, 'error', hook)
