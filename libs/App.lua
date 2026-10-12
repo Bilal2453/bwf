@@ -273,7 +273,6 @@ function App:_handleCall(call)
     return self:_error({ status = 404, detail = 'Requested path was not found' }, call, self.hooks.error)
   end
   call.logger:trace('Matched route pattern "%s"', path.pattern)
-  local routes = path.routes
   local endpoint = path.endpoint
   -- tell the call about this route's params
   call:_setParams(path, matches)

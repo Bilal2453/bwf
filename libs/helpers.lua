@@ -38,6 +38,7 @@ function helpers.getUpvalue(fn, name)
   return value
 end
 
+--- A libuv helper for closing sockets.
 function helpers.closeSocket(socket)
   if socket:is_closing() then
     return true
@@ -45,6 +46,7 @@ function helpers.closeSocket(socket)
   return socket:close()
 end
 
+--- A libuv helper for resetting sockets (falls back for normal close).
 function helpers.resetSocket(socket)
   if socket:is_closing() then
     return true
